@@ -98,7 +98,7 @@ echo "$ADD_RESPONSE" \
   > "$FIXTURES_DIR/transaction_add.json"
 echo "  ✓ $FIXTURES_DIR/transaction_add.json"
 
-TRANSACTION_ID=$(echo "$ADD_RESPONSE" | jq '.response.transaction.id')
+TRANSACTION_ID=$(echo "$ADD_RESPONSE" | jq '.response.id')
 
 hurl "$REQUESTS_DIR/transaction_edit.hurl" \
   --variable "token=$TOKEN" \

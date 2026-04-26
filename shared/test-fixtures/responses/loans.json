@@ -1,1 +1,25 @@
-{}
+{
+  "response": {
+    "loans": [
+      {
+        "entity": "Test Entity 1",
+        "type": "contact",
+        "balance": 5000,
+        "description": "Loan 1"
+      },
+      {
+        "entity": "Test Entity 2",
+        "type": "contact",
+        "balance": 103547,
+        "description": "Loan 2"
+      },
+      {
+        "entity": "Test Entity 3",
+        "type": "contact",
+        "balance": 49937.71,
+        "description": "Loan 3"
+      }
+    ],
+    "status": "OK"
+  }
+}

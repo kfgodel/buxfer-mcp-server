@@ -1,1 +1,25 @@
-{}
+{
+  "response": {
+    "tags": [
+      {
+        "id": 9126,
+        "name": "Tag 9126",
+        "relativeName": "tag 9126",
+        "parentId": null
+      },
+      {
+        "id": 58046,
+        "name": "Tag 58046",
+        "relativeName": "tag 58046",
+        "parentId": null
+      },
+      {
+        "id": 21846,
+        "name": "Tag 21846",
+        "relativeName": "tag 21846",
+        "parentId": 9126
+      }
+    ],
+    "status": "OK"
+  }
+}

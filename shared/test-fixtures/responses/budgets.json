@@ -1,1 +1,55 @@
-{}
+{
+  "response": {
+    "budgets": [
+      {
+        "editMode": "schedule_all",
+        "periodSize": 1,
+        "periodUnit": "month",
+        "startDate": "2022-03-01",
+        "stopDate": null,
+        "budgetId": 58182,
+        "type": 1,
+        "name": "Budget 58182",
+        "tagId": 57904,
+        "tag": {
+          "id": 57904,
+          "name": "Budget Tag 57904",
+          "relativeName": "budget tag 57904",
+          "parentId": 58046
+        },
+        "limit": 50000,
+        "spent": 946905.21,
+        "balance": -896905.21,
+        "period": "Apr",
+        "isRolledOver": 0,
+        "eventId": 34183,
+        "id": 58182
+      },
+      {
+        "editMode": "schedule_all",
+        "periodSize": 1,
+        "periodUnit": "month",
+        "startDate": "2022-03-01",
+        "stopDate": null,
+        "budgetId": 58183,
+        "type": 1,
+        "name": "Budget 58183",
+        "tagId": 57906,
+        "tag": {
+          "id": 57906,
+          "name": "Budget Tag 57906",
+          "relativeName": "budget tag 57906",
+          "parentId": 58052
+        },
+        "limit": 40000,
+        "spent": 65700,
+        "balance": -25700,
+        "period": "Apr",
+        "isRolledOver": 0,
+        "eventId": 34185,
+        "id": 58183
+      }
+    ],
+    "status": "OK"
+  }
+}

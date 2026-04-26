@@ -1,7 +1,7 @@
-# Anonymize group names and member names.
-# Balances are kept as-is (not identifiable without knowing who they belong to).
+# Anonymise group IDs, names, and member names.
 .response.groups |= map(
-  .name = "Test Group \(.id)"
+  .id = (.id % 64999 + 1)
+  | .name = "Test Group \(.id)"
   | .members = [
       .members | to_entries[] |
       .value.name = "Member \(.key + 1)" |

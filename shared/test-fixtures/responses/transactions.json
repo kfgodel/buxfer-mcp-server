@@ -1,1 +1,100 @@
-{}
+{
+  "response": {
+    "numTransactions": "5",
+    "transactions": [
+      {
+        "id": 33040,
+        "description": "Transaction 33040",
+        "date": "2026-04-26",
+        "type": "expense",
+        "transactionType": "expense",
+        "amount": 0.01,
+        "expenseAmount": 0.01,
+        "accountId": 10350,
+        "accountName": "Test Account",
+        "tags": "",
+        "tagNames": [],
+        "status": "cleared",
+        "isFutureDated": false,
+        "isPending": false
+      },
+      {
+        "id": 33026,
+        "description": "Transaction 33026",
+        "date": "2026-04-26",
+        "type": "expense",
+        "transactionType": "expense",
+        "amount": 0.01,
+        "expenseAmount": 0.01,
+        "accountId": 10350,
+        "accountName": "Test Account",
+        "tags": "",
+        "tagNames": [],
+        "status": "cleared",
+        "isFutureDated": false,
+        "isPending": false
+      },
+      {
+        "id": 39962,
+        "description": "Transaction 39962",
+        "date": "2026-04-25",
+        "type": "expense",
+        "transactionType": "expense",
+        "amount": 6.49,
+        "expenseAmount": 9024.1,
+        "accountId": 12768,
+        "accountName": "Test Account",
+        "tags": "Tag 1",
+        "tagNames": [
+          "Tag 1"
+        ],
+        "status": "pending",
+        "isFutureDated": false,
+        "isPending": true
+      },
+      {
+        "id": 22654,
+        "description": "Transaction 22654",
+        "date": "2026-04-24",
+        "type": "transfer",
+        "transactionType": "transfer",
+        "amount": 50000,
+        "expenseAmount": 0,
+        "tags": "",
+        "tagNames": [],
+        "status": "cleared",
+        "isFutureDated": false,
+        "isPending": false,
+        "fromAccount": {
+          "id": 603017,
+          "name": "Galicia ARS"
+        },
+        "toAccount": {
+          "id": 1100868,
+          "name": "MercadoPago"
+        },
+        "accountName": "Test Account",
+        "accountId": null
+      },
+      {
+        "id": 22653,
+        "description": "Transaction 22653",
+        "date": "2026-04-24",
+        "type": "income",
+        "transactionType": "income",
+        "amount": 4.1,
+        "expenseAmount": -4.1,
+        "accountId": 18027,
+        "accountName": "Test Account",
+        "tags": "Tag 1",
+        "tagNames": [
+          "Tag 1"
+        ],
+        "status": "cleared",
+        "isFutureDated": false,
+        "isPending": false
+      }
+    ],
+    "status": "OK"
+  }
+}

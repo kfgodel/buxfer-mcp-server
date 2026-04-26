@@ -1,1 +1,18 @@
-{}
+{
+  "response": {
+    "id": 33068,
+    "description": "Test Transaction (edited)",
+    "date": "2026-04-26",
+    "type": "expense",
+    "transactionType": "expense",
+    "amount": 0.01,
+    "expenseAmount": 0.01,
+    "accountId": 10350,
+    "accountName": "Test Account",
+    "tags": "",
+    "tagNames": [],
+    "status": "cleared",
+    "isFutureDated": false,
+    "isPending": false
+  }
+}

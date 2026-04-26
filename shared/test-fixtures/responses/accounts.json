@@ -1,1 +1,42 @@
-{}
+{
+  "response": {
+    "accounts": [
+      {
+        "id": 10350,
+        "name": "Test Account 10350",
+        "bank": "Test Bank",
+        "balance": 360.01,
+        "currency": "ARS"
+      },
+      {
+        "id": 53367,
+        "name": "Test Account 53367",
+        "bank": "Test Bank",
+        "balance": 420.01,
+        "currency": "ARS"
+      },
+      {
+        "id": 18803,
+        "name": "Test Account 18803",
+        "bank": "Test Bank",
+        "balance": 821.01,
+        "currency": "USD"
+      },
+      {
+        "id": 18804,
+        "name": "Test Account 18804",
+        "bank": "Test Bank",
+        "balance": 822.01,
+        "currency": "EUR"
+      },
+      {
+        "id": 18027,
+        "name": "Test Account 18027",
+        "bank": "Test Bank",
+        "balance": 45.01,
+        "currency": "ARS"
+      }
+    ],
+    "status": "OK"
+  }
+}

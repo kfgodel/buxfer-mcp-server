@@ -1,1 +1,57 @@
-{}
+{
+  "response": {
+    "reminders": [
+      {
+        "id": 57872,
+        "nextExecution": "2026-05-03",
+        "dueDateDescription": "2026-05-03",
+        "numDaysForDueDate": 7,
+        "tags": [
+          {
+            "id": 19297,
+            "name": "Tag 19297",
+            "relativeName": "tag 19297",
+            "parentId": 58082
+          }
+        ],
+        "editMode": "schedule_all",
+        "periodSize": 1,
+        "periodUnit": "month",
+        "startDate": "2026-02-03",
+        "stopDate": null,
+        "name": "Reminder 57872",
+        "description": "Reminder description 57872",
+        "type": "expense",
+        "transactionType": 3,
+        "amount": 3.44,
+        "accountId": 13872
+      },
+      {
+        "id": 6886,
+        "nextExecution": "2026-05-16",
+        "dueDateDescription": "2026-05-16",
+        "numDaysForDueDate": 20,
+        "tags": [
+          {
+            "id": 63483,
+            "name": "Tag 63483",
+            "relativeName": "tag 63483",
+            "parentId": 57902
+          }
+        ],
+        "editMode": "schedule_all",
+        "periodSize": 1,
+        "periodUnit": "month",
+        "startDate": "2026-03-16",
+        "stopDate": null,
+        "name": "Reminder 6886",
+        "description": "Reminder description 6886",
+        "type": "expense",
+        "transactionType": 3,
+        "amount": 39612.63,
+        "accountId": 605
+      }
+    ],
+    "status": "OK"
+  }
+}
