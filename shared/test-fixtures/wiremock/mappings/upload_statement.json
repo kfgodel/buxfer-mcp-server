@@ -1,0 +1,11 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPathEqualTo": "/api/upload_statement"
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "bodyFileName": "upload_statement.json"
+  }
+}

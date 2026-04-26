@@ -1,11 +1,1 @@
-{
-  "status": "OK",
-  "tags": [
-    {"id": 3001, "name": "Food",      "parentId": null},
-    {"id": 3002, "name": "Dining",    "parentId": 3001},
-    {"id": 3003, "name": "Groceries", "parentId": 3001},
-    {"id": 3004, "name": "Utilities", "parentId": null},
-    {"id": 3005, "name": "Income",    "parentId": null},
-    {"id": 3006, "name": "Shopping",  "parentId": null}
-  ]
-}
+{}

@@ -107,12 +107,9 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 ```bash
 # Unit + integration tests (no real credentials required)
 gradle test
-
-# Refresh shared fixtures from a real Buxfer account (requires credentials)
-export BUXFER_EMAIL="your@email.com"
-export BUXFER_PASSWORD="yourpassword"
-gradle test -Dinclude.tags=capture
 ```
+
+Fixture capture is handled by the language-agnostic `api-recordings/` module — not Kotlin code. Run `./run-capture.sh` there first to populate `shared/test-fixtures/responses/` before running tests.
 
 ### Framework
 

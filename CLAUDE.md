@@ -8,7 +8,8 @@ A Model Context Protocol (MCP) server that exposes [Buxfer](https://www.buxfer.c
 
 ```
 buxfer-mcp-server/
-├── shared/          # Language-agnostic API spec and data model docs
+├── api-recordings/  # Recorded API interactions for testing and documentation
+├── shared/          # Language-agnostic API spec and shared test fixtures
 ├── kotlin/          # Kotlin/JVM implementation (Gradle, MCP Kotlin SDK)
 ├── typescript/      # TypeScript/Node implementation (not yet started)
 └── python/          # Python implementation (not yet started)

@@ -1,13 +1,1 @@
-{
-  "status": "OK",
-  "transaction": {
-    "id": 5099,
-    "description": "Test New Transaction",
-    "amount": 50.00,
-    "accountId": 1001,
-    "date": "2025-01-16",
-    "tags": "Shopping",
-    "type": "expense",
-    "status": "cleared"
-  }
-}
+{}

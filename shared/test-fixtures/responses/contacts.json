@@ -1,17 +1,1 @@
-{
-  "status": "OK",
-  "contacts": [
-    {
-      "id": 2001,
-      "name": "Contact One",
-      "email": "contact.one@example.com",
-      "balance": 25.00
-    },
-    {
-      "id": 2002,
-      "name": "Contact Two",
-      "email": "contact.two@example.com",
-      "balance": -15.00
-    }
-  ]
-}
+{}

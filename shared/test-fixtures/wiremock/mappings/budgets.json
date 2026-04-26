@@ -1,0 +1,11 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPathEqualTo": "/api/budgets"
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "bodyFileName": "budgets.json"
+  }
+}

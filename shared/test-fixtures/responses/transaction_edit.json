@@ -1,13 +1,1 @@
-{
-  "status": "OK",
-  "transaction": {
-    "id": 5001,
-    "description": "Updated Grocery Store",
-    "amount": 80.00,
-    "accountId": 1001,
-    "date": "2025-01-15",
-    "tags": "Food,Groceries",
-    "type": "expense",
-    "status": "cleared"
-  }
-}
+{}

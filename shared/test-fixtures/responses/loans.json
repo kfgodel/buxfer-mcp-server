@@ -1,17 +1,1 @@
-{
-  "status": "OK",
-  "loans": [
-    {
-      "entity": "Contact One",
-      "type": "contact",
-      "balance": 25.00,
-      "description": "Lunch"
-    },
-    {
-      "entity": "Roommates",
-      "type": "group",
-      "balance": 75.00,
-      "description": "Group expenses"
-    }
-  ]
-}
+{}

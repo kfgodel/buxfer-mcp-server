@@ -1,0 +1,11 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPathEqualTo": "/api/transaction_delete"
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "bodyFileName": "transaction_delete.json"
+  }
+}

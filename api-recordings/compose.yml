@@ -1,0 +1,9 @@
+services:
+  wiremock:
+    image: wiremock/wiremock:3.10.0
+    ports:
+      - "8089:8080"
+    volumes:
+      - ../shared/test-fixtures/wiremock/mappings:/home/wiremock/mappings:ro
+      - ../shared/test-fixtures/responses:/home/wiremock/__files:ro
+    command: --port 8080 --verbose --disable-banner
