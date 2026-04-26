@@ -6,17 +6,22 @@ A Kotlin/JVM implementation of the Buxfer MCP server. Uses the official [MCP Kot
 
 ## Prerequisites
 
-- Java 21 (managed via ASDF — run `asdf install` from this directory)
-- Gradle 8.10+ (provided via the Gradle wrapper: `./gradlew`)
+- Java 21 and Gradle 9.4.1, both managed via [ASDF](https://asdf-vm.com/).
+
+```bash
+# From the kotlin/ directory
+asdf plugin add java    # if not already added
+asdf plugin add gradle  # if not already added
+asdf install            # installs versions declared in .tool-versions
+```
 
 ## Project Structure
 
 ```
 kotlin/
+├── .tool-versions                      # ASDF: java + gradle versions
 ├── build.gradle.kts                    # Build config, dependencies
 ├── settings.gradle.kts                 # Project name
-├── gradle/wrapper/                     # Gradle wrapper files
-├── gradlew / gradlew.bat               # Gradle wrapper scripts
 └── src/main/kotlin/com/buxfer/mcp/
     ├── Main.kt                         # Entry point — wires up and starts MCP server
     ├── BuxferMcpServer.kt              # Server bootstrap, tool registration
@@ -67,10 +72,10 @@ On startup, `BuxferClient` calls `POST /api/login` and stores the returned token
 
 ```bash
 # Build fat JAR
-./gradlew shadowJar
+gradle shadowJar
 
 # Run directly (development)
-./gradlew run
+gradle run
 
 # Run the fat JAR
 java -jar build/libs/buxfer-mcp-server-all.jar
