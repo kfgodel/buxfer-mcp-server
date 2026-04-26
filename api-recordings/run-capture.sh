@@ -5,16 +5,28 @@ set -euo pipefail
 # ../shared/test-fixtures/responses/.
 #
 # Usage:
-#   export BUXFER_EMAIL="your@email.com"
-#   export BUXFER_PASSWORD="yourpassword"
 #   ./run-capture.sh
+#
+# Credentials are loaded automatically from ../.env (repo root).
+# Copy ../.env.example to ../.env and fill in your values before running.
+# You can also override by exporting variables before calling this script.
 #
 # Requires: hurl, jq (both managed via ASDF — run `asdf install` first)
 
-: "${BUXFER_EMAIL:?BUXFER_EMAIL must be set}"
-: "${BUXFER_PASSWORD:?BUXFER_PASSWORD must be set}"
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_ENV="$SCRIPT_DIR/../.env"
+
+# Load root .env if present; already-exported variables take precedence
+if [ -f "$ROOT_ENV" ]; then
+  set -a
+  # shellcheck source=/dev/null
+  source "$ROOT_ENV"
+  set +a
+fi
+
+: "${BUXFER_EMAIL:?BUXFER_EMAIL not set — copy .env.example to .env and fill in your credentials}"
+: "${BUXFER_PASSWORD:?BUXFER_PASSWORD not set — copy .env.example to .env and fill in your credentials}"
+
 FIXTURES_DIR="$SCRIPT_DIR/../shared/test-fixtures/responses"
 REQUESTS_DIR="$SCRIPT_DIR/requests"
 ANONYMIZE_DIR="$SCRIPT_DIR/anonymize"

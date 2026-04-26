@@ -1,0 +1,18 @@
+# Credentials — never commit
+.env
+
+# Kotlin / Gradle
+kotlin/.gradle/
+kotlin/build/
+
+# TypeScript / Node
+typescript/node_modules/
+typescript/dist/
+
+# Python
+python/__pycache__/
+python/.venv/
+python/*.egg-info/
+
+# macOS
+.DS_Store

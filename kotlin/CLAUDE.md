@@ -64,6 +64,14 @@ The server reads credentials from environment variables:
 | `BUXFER_EMAIL`   | Buxfer account email     |
 | `BUXFER_PASSWORD`| Buxfer account password  |
 
+For local development, set these in the root `.env` file and load it before running:
+
+```bash
+# from kotlin/
+set -a && source ../.env && set +a
+gradle run
+```
+
 On startup, `BuxferClient` calls `POST /api/login` and stores the returned token in memory. All subsequent tool calls inject this token.
 
 **Do not log to stdout** — MCP communicates over stdio, and any stray output breaks the protocol. All logging must go to stderr or be suppressed.

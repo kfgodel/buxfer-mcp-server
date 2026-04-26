@@ -15,6 +15,17 @@ buxfer-mcp-server/
 └── python/          # Python implementation (not yet started)
 ```
 
+## Credentials
+
+Buxfer credentials are stored in a single `.env` file at the repository root and shared across all modules:
+
+```bash
+cp .env.example .env
+# edit .env — add BUXFER_EMAIL and BUXFER_PASSWORD
+```
+
+`.env` is gitignored. Each module that needs credentials loads it automatically — you never need to export variables by hand. See `.env.example` for the full variable list.
+
 ## Language Version Management
 
 [ASDF](https://asdf-vm.com/) is used for all runtime versions. Each sub-project is fully self-contained: its own `.tool-versions` declares exactly the tools it needs. There is no root-level `.tool-versions`.

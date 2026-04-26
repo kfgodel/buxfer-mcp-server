@@ -37,12 +37,20 @@ typescript/
 
 ## Configuration
 
-Same environment variables as the Kotlin implementation:
+Credentials are read from environment variables:
 
 | Variable         | Description              |
 |------------------|--------------------------|
 | `BUXFER_EMAIL`   | Buxfer account email     |
 | `BUXFER_PASSWORD`| Buxfer account password  |
+
+For local development, load from the root `.env` file:
+
+```bash
+# from typescript/
+set -a && source ../.env && set +a
+npm start
+```
 
 ## API Reference
 
