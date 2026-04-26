@@ -1,0 +1,15 @@
+{
+  "status": "OK",
+  "groups": [
+    {
+      "id": 7001,
+      "name": "Roommates",
+      "consolidated": false,
+      "members": [
+        {"name": "Test User",    "balance":  75.00},
+        {"name": "Roommate One", "balance": -37.50},
+        {"name": "Roommate Two", "balance": -37.50}
+      ]
+    }
+  ]
+}

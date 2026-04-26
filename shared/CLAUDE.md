@@ -4,7 +4,8 @@ This directory contains language-agnostic reference material used by all three M
 
 ## Contents
 
-- `api-spec/buxfer-api.md` — Canonical Buxfer REST API specification. This is the single source of truth for tool definitions, parameter names, response shapes, and domain model fields across all implementations.
+- `api-spec/buxfer-api.md` — Canonical Buxfer REST API specification. Single source of truth for tool definitions, parameter names, response shapes, and domain model fields across all implementations.
+- `test-fixtures/` — Anonymized real Buxfer API responses used as the test contract for all three implementations. See `test-fixtures/CLAUDE.md` for the capture workflow and anonymization rules.
 
 ## Usage
 

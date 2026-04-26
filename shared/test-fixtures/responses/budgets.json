@@ -1,0 +1,25 @@
+{
+  "status": "OK",
+  "budgets": [
+    {
+      "id": 4001,
+      "name": "Food Budget",
+      "limit": 600.00,
+      "remaining": 480.57,
+      "period": "monthly",
+      "currentPeriod": "2025-01",
+      "tags": ["Food", "Dining", "Groceries"],
+      "keywords": ["restaurant", "grocery", "supermarket"]
+    },
+    {
+      "id": 4002,
+      "name": "Utilities Budget",
+      "limit": 200.00,
+      "remaining": 104.80,
+      "period": "monthly",
+      "currentPeriod": "2025-01",
+      "tags": ["Utilities"],
+      "keywords": ["electric", "gas", "water", "internet"]
+    }
+  ]
+}

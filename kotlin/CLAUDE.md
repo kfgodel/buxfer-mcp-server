@@ -100,6 +100,57 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
+## Testing
+
+### Running tests
+
+```bash
+# Unit + integration tests (no real credentials required)
+gradle test
+
+# Refresh shared fixtures from a real Buxfer account (requires credentials)
+export BUXFER_EMAIL="your@email.com"
+export BUXFER_PASSWORD="yourpassword"
+gradle test -Dinclude.tags=capture
+```
+
+### Framework
+
+| Library | Purpose |
+|---|---|
+| JUnit 5 (`junit-jupiter`) | Test runner |
+| MockK | Kotlin-idiomatic mocking of `BuxferClient` in tool tests |
+| Ktor `ktor-client-mock` | `MockEngine` for HTTP-level tests of `BuxferClient` |
+| `kotlinx-coroutines-test` | `runTest` for testing `suspend` functions |
+
+### Test structure
+
+```
+src/test/kotlin/com/buxfer/mcp/
+├── TestFixtureLoader.kt          # Loads JSON from shared/test-fixtures/responses/
+├── api/
+│   └── BuxferClientTest.kt       # HTTP-level: MockEngine + fixture JSON
+├── tools/
+│   ├── TransactionToolsTest.kt   # Unit: MockK BuxferClient
+│   ├── AccountToolsTest.kt
+│   └── LookupToolsTest.kt
+└── capture/
+    └── CaptureFixtures.kt        # @Tag("capture") — hits real API, writes fixtures
+```
+
+### Shared fixtures
+
+All tests load response JSON from `../shared/test-fixtures/responses/` (path injected via the `fixtures.dir` system property in `build.gradle.kts`). The same fixture files are used by the TypeScript and Python implementations, so every language tests against an identical response contract.
+
+See `../shared/test-fixtures/CLAUDE.md` for the anonymization rules and capture workflow.
+
+### Testing expectations
+
+Every class added to this project must have a corresponding test class. Specifically:
+- Each `*Tools.kt` → `*ToolsTest.kt`: verify tool→client delegation and JSON output.
+- `BuxferClient.kt` → `BuxferClientTest.kt`: verify deserialization of every endpoint using fixture files.
+- New model fields added to `models/` should have a deserialization test in `BuxferClientTest`.
+
 ## API Reference
 
 All tool contracts are defined in `../shared/api-spec/buxfer-api.md`. Implement each MCP tool to match the parameter names and types specified there.

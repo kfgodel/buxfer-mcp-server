@@ -4,6 +4,10 @@ import com.buxfer.mcp.api.models.*
 
 // TODO: Implement a Ktor-based HTTP client for the Buxfer REST API.
 //
+// IMPORTANT — testability: accept an optional HttpClientEngine parameter so
+// tests can inject a MockEngine without making real network calls:
+//   class BuxferClient(engine: HttpClientEngine = CIO.create())
+//
 // Base URL: https://www.buxfer.com/api
 //
 // Responsibilities:

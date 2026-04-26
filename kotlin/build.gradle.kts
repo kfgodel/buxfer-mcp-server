@@ -17,6 +17,9 @@ repositories {
 val ktorVersion = "3.2.0"
 val mcpSdkVersion = "0.11.1"
 val serializationVersion = "1.9.0"
+val junitVersion = "5.14.4"
+val mockkVersion = "1.14.9"
+val coroutinesTestVersion = "1.10.2"
 
 dependencies {
     // MCP server protocol
@@ -33,6 +36,13 @@ dependencies {
 
     // Suppress SLF4J output to stdout (would break stdio MCP transport)
     implementation("org.slf4j:slf4j-nop:2.0.17")
+
+    // Test
+    testImplementation("org.junit.jupiter:junit-jupiter:$junitVersion")
+    testImplementation("io.mockk:mockk:$mockkVersion")
+    testImplementation("io.ktor:ktor-client-mock:$ktorVersion")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesTestVersion")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 application {
@@ -50,4 +60,12 @@ tasks.withType<ShadowJar> {
 
 tasks.named("build") {
     dependsOn("shadowJar")
+}
+
+tasks.test {
+    useJUnitPlatform()
+    // Shared anonymized fixtures used by all language implementations
+    systemProperty("fixtures.dir", "${project.projectDir}/../shared/test-fixtures/responses")
+    // Run only unit tests by default; skip capture tests (require real credentials)
+    excludeTags("capture")
 }
