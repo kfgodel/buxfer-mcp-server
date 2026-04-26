@@ -39,7 +39,8 @@ mkdir -p "$FIXTURES_DIR"
 echo "→ Logging in as $BUXFER_EMAIL ..."
 LOGIN_RESPONSE=$(hurl "$REQUESTS_DIR/login.hurl" \
   --variable "BUXFER_EMAIL=$BUXFER_EMAIL" \
-  --variable "BUXFER_PASSWORD=$BUXFER_PASSWORD")
+  --variable "BUXFER_PASSWORD=$BUXFER_PASSWORD") \
+  || { echo "✗ login request failed" >&2; exit 1; }
 
 TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.response.token')
 if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
@@ -69,11 +70,18 @@ capture_get() {
 # ---------------------------------------------------------------------------
 # GET endpoints
 # ---------------------------------------------------------------------------
-capture_get accounts
+echo "→ Capturing accounts ..."
+ACCOUNTS_RESPONSE=$(hurl "$REQUESTS_DIR/accounts.hurl" --variable "token=$TOKEN") \
+  || { echo "✗ accounts request failed" >&2; exit 1; }
 
-# Extract the first account ID for use in write-endpoint tests
-ACCOUNT_ID=$(jq '.response.accounts[0].id' "$FIXTURES_DIR/accounts.json")
+# Extract the real account ID BEFORE anonymisation (anonymised IDs are not valid Buxfer IDs)
+ACCOUNT_ID=$(echo "$ACCOUNTS_RESPONSE" | jq '.response.accounts[0].id')
 echo "  Using account ID $ACCOUNT_ID for write operations."
+
+echo "$ACCOUNTS_RESPONSE" \
+  | jq -f "$ANONYMIZE_DIR/accounts.jq" \
+  > "$FIXTURES_DIR/accounts.json"
+echo "  ✓ $FIXTURES_DIR/accounts.json"
 
 capture_get transactions
 capture_get tags
@@ -92,7 +100,8 @@ echo "→ Capturing transaction write operations (account $ACCOUNT_ID, date $TOD
 ADD_RESPONSE=$(hurl "$REQUESTS_DIR/transaction_add.hurl" \
   --variable "token=$TOKEN" \
   --variable "account_id=$ACCOUNT_ID" \
-  --variable "date=$TODAY")
+  --variable "date=$TODAY") \
+  || { echo "✗ transaction_add request failed" >&2; exit 1; }
 echo "$ADD_RESPONSE" \
   | jq -f "$ANONYMIZE_DIR/transaction_add.jq" \
   > "$FIXTURES_DIR/transaction_add.json"
