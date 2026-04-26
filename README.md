@@ -33,29 +33,9 @@ cp .env.example .env
 
 `.env` is gitignored and never committed.
 
-### 2. Refresh API recordings (do this first if the recordings are stale)
+### 2. Refresh API recordings and start the mock server
 
-The `api-recordings/` module captures real Buxfer API responses, anonymizes them, and stores them as test fixtures. **All three implementations depend on these recordings** for integration testing — run this step before building or testing any implementation, and re-run it whenever the Buxfer API may have changed.
-
-```bash
-cd api-recordings
-asdf plugin add hurl && asdf plugin add jq
-asdf install
-./run-capture.sh
-```
-
-A good rule of thumb: if the recordings are more than a few weeks old, or if you notice unexpected test failures, refresh them before investigating further.
-
-See [`api-recordings/README.md`](api-recordings/CLAUDE.md) for details on the capture and anonymization workflow.
-
-### 3. Start the mock server
-
-```bash
-cd api-recordings
-docker compose up
-```
-
-WireMock starts on `http://localhost:8089` and serves the recorded responses. Keep it running while executing tests.
+All three implementations depend on recorded API responses for integration testing. See **[`api-recordings/README.md`](api-recordings/README.md)** for when and how to refresh them, and how to start the WireMock mock server.
 
 ### 4. Run an implementation
 
