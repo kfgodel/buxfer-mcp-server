@@ -41,12 +41,17 @@ LOGIN_RESPONSE=$(hurl "$REQUESTS_DIR/login.hurl" \
   --variable "BUXFER_EMAIL=$BUXFER_EMAIL" \
   --variable "BUXFER_PASSWORD=$BUXFER_PASSWORD")
 
-TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.token')
+TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.response.token')
 if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
   echo "✗ Login failed. Response: $LOGIN_RESPONSE" >&2
   exit 1
 fi
 echo "  Token acquired."
+
+echo "$LOGIN_RESPONSE" \
+  | jq -f "$ANONYMIZE_DIR/login.jq" \
+  > "$FIXTURES_DIR/login.json"
+echo "  ✓ $FIXTURES_DIR/login.json"
 
 # ---------------------------------------------------------------------------
 # Helper: capture a GET endpoint and anonymize
@@ -67,7 +72,7 @@ capture_get() {
 capture_get accounts
 
 # Extract the first account ID for use in write-endpoint tests
-ACCOUNT_ID=$(jq '.accounts[0].id' "$FIXTURES_DIR/accounts.json")
+ACCOUNT_ID=$(jq '.response.accounts[0].id' "$FIXTURES_DIR/accounts.json")
 echo "  Using account ID $ACCOUNT_ID for write operations."
 
 capture_get transactions
@@ -93,7 +98,7 @@ echo "$ADD_RESPONSE" \
   > "$FIXTURES_DIR/transaction_add.json"
 echo "  ✓ $FIXTURES_DIR/transaction_add.json"
 
-TRANSACTION_ID=$(echo "$ADD_RESPONSE" | jq '.transaction.id')
+TRANSACTION_ID=$(echo "$ADD_RESPONSE" | jq '.response.transaction.id')
 
 hurl "$REQUESTS_DIR/transaction_edit.hurl" \
   --variable "token=$TOKEN" \

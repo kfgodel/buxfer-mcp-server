@@ -6,6 +6,6 @@
   "response": {
     "status": 200,
     "headers": { "Content-Type": "application/json" },
-    "body": "{\"status\":\"OK\",\"token\":\"test-mock-token\"}"
+    "bodyFileName": "login.json"
   }
 }

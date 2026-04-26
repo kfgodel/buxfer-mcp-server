@@ -4,6 +4,11 @@ import com.buxfer.mcp.api.models.*
 
 // TODO: Implement a Ktor-based HTTP client for the Buxfer REST API.
 //
+// IMPORTANT — response envelope: every Buxfer response is wrapped as
+//   { "response": { "status": "OK", ...payload } }
+// Define a generic wrapper (e.g. BuxferResponse<T>) and unwrap it before
+// returning typed results to callers.
+//
 // IMPORTANT — testability: accept an optional HttpClientEngine parameter so
 // tests can inject a MockEngine without making real network calls:
 //   class BuxferClient(engine: HttpClientEngine = CIO.create())

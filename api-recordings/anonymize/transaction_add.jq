@@ -1,2 +1,2 @@
 # Anonymize the description of the newly created transaction.
-.transaction.description = "Test Transaction"
+.response.transaction.description = "Test Transaction"

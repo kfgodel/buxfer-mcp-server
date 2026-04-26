@@ -10,6 +10,16 @@ https://www.buxfer.com/api/{command}
 
 All requests except `login` require a `token` query parameter.
 
+## Response envelope
+
+Every response is wrapped in a `response` object:
+
+```json
+{ "response": { "status": "OK", ...payload } }
+```
+
+Implementations must unwrap `.response` before accessing payload fields.
+
 ## Authentication
 
 Buxfer uses **ephemeral token-based authentication**.
@@ -43,8 +53,10 @@ Authenticate and obtain a session token.
 
 ```json
 {
-  "status": "OK",
-  "token": "<session_token>"
+  "response": {
+    "status": "OK",
+    "token": "<session_token>"
+  }
 }
 ```
 

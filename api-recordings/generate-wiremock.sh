@@ -12,7 +12,7 @@ MAPPINGS_DIR="$SCRIPT_DIR/../shared/test-fixtures/wiremock/mappings"
 mkdir -p "$MAPPINGS_DIR"
 
 # ---------------------------------------------------------------------------
-# login — always returns a fixed mock token; no fixture file needed
+# login
 # ---------------------------------------------------------------------------
 cat > "$MAPPINGS_DIR/login.json" << 'EOF'
 {
@@ -23,7 +23,7 @@ cat > "$MAPPINGS_DIR/login.json" << 'EOF'
   "response": {
     "status": 200,
     "headers": { "Content-Type": "application/json" },
-    "body": "{\"status\":\"OK\",\"token\":\"test-mock-token\"}"
+    "bodyFileName": "login.json"
   }
 }
 EOF
