@@ -1,0 +1,12 @@
+{
+  "env": {
+    "ENABLE_LSP_TOOL": "1"
+  },
+  "lsp": {
+    "python": {
+      "command": "pyright-langserver",
+      "args": ["--stdio"],
+      "extensionToLanguage": { ".py": "python" }
+    }
+  }
+}

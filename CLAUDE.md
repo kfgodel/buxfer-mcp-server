@@ -65,3 +65,24 @@ When implementing any language version, derive tool definitions and model classe
 ## Running an Implementation
 
 Each sub-project is self-contained. See the `CLAUDE.md` inside each directory for build, run, and configuration instructions specific to that language.
+
+## Running Commands
+
+Always use ASDF shims to run language-specific tools. Do not set `JAVA_HOME` or `PATH` manually — instead put `~/.asdf/shims` on `PATH` so ASDF resolves the correct binary from the working directory's `.tool-versions`:
+
+```bash
+# From the relevant sub-project directory
+PATH="$HOME/.asdf/shims:$PATH" gradle test
+PATH="$HOME/.asdf/shims:$PATH" gradle build
+```
+
+## Code Intelligence — LSP First
+
+**Always use the LSP tool before any other approach** when you need to:
+- Discover the correct import path for a class or symbol
+- Check a type signature or method signature
+- Navigate to a definition or find references
+
+Use `workspaceSymbol` to search for a symbol by name across all indexed files (including SDK dependencies once the project compiles). Use `goToDefinition` to jump to a symbol's definition. Use `hover` to inspect type information.
+
+Only fall back to other approaches (asking the user, running a compile to read error output) if the LSP cannot resolve the symbol — which typically happens when the project has not compiled yet and the LSP has not indexed external dependencies.

@@ -1,0 +1,12 @@
+{
+  "env": {
+    "ENABLE_LSP_TOOL": "1"
+  },
+  "lsp": {
+    "typescript": {
+      "command": "typescript-language-server",
+      "args": ["--stdio"],
+      "extensionToLanguage": { ".ts": "typescript", ".tsx": "typescript" }
+    }
+  }
+}

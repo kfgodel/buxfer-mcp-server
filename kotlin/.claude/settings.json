@@ -1,0 +1,12 @@
+{
+  "env": {
+    "ENABLE_LSP_TOOL": "1"
+  },
+  "lsp": {
+    "kotlin": {
+      "command": "kotlin-language-server",
+      "args": ["--stdio"],
+      "extensionToLanguage": { ".kt": "kotlin" }
+    }
+  }
+}

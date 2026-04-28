@@ -4,6 +4,55 @@
 
 This directory will contain the Python implementation of the Buxfer MCP server.
 
+## Prerequisites
+
+- Python 3.12 (managed via ASDF):
+
+```bash
+asdf plugin add python  # if not already added
+asdf install
+```
+
+- [pyright](https://github.com/microsoft/pyright) for LSP support in Claude Code:
+
+```bash
+# 1. Install the language server binary
+npm install -g pyright
+
+# 2. Install and enable the Claude Code plugin (run once per machine)
+claude plugin install pyright-lsp@claude-plugins-official
+claude plugin enable pyright-lsp
+```
+
+The LSP project configuration is already committed at `.claude/settings.json`.
+
+To verify it's working, check `~/.claude/debug/` for a line like:
+```
+LSP server plugin:pyright-lsp:python initialized
+```
+
+## Code Intelligence — LSP First
+
+**Always use the LSP tool as the primary way to explore code.** Before guessing an import path, checking a type, or navigating to a definition, use LSP:
+
+- `workspaceSymbol` — find any class, function, or type by name across the whole project and indexed deps
+- `goToDefinition` — jump to where a symbol is defined (works for SDK types once the project is set up)
+- `hover` — inspect type signatures and documentation in place
+- `findReferences` / `documentSymbol` — explore usages or the structure of a file
+
+**When LSP cannot resolve a symbol, ask the user** rather than resorting to `site-packages` inspection or other workarounds.
+
+## Running Commands
+
+Always use ASDF shims so the correct Python version from `.tool-versions` is used:
+
+```bash
+# From python/
+PATH="$HOME/.asdf/shims:$PATH" python -m buxfer_mcp
+PATH="$HOME/.asdf/shims:$PATH" python -m pytest
+PATH="$HOME/.asdf/shims:$PATH" uv run python ...
+```
+
 ## Planned Stack
 
 | Component | Library |
