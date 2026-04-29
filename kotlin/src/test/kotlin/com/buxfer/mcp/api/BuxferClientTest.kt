@@ -47,9 +47,8 @@ class BuxferClientTest {
 
     @Test
     fun `login stores token on success`() = runTest {
-        val loginClient = BuxferClient(mockEngine())
-        loginClient.login("user@example.com", "password")
-        assertEquals("test-mock-token", loginClient.token)
+        client.login("user@example.com", "password")
+        assertEquals("test-mock-token", client.token)
     }
 
     @Test
