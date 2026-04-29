@@ -52,6 +52,35 @@ All three servers expose the same set of MCP **tools** (Claude-callable function
 
 Servers communicate via **stdio** transport (standard for local MCP servers used with Claude Desktop / Claude Code).
 
+## Cross-Language Implementation Conventions
+
+These rules apply to all three language implementations and must be followed consistently so the servers behave identically and the codebases stay navigable.
+
+### Tool naming
+
+MCP tool names follow the pattern `buxfer_<verb>_<resource>` (e.g. `buxfer_list_accounts`, `buxfer_add_transaction`). The full list is defined in `shared/api-spec/buxfer-api.md` and must not diverge between implementations.
+
+### Tool class organization
+
+**One tool class per resource.** Each Buxfer domain resource gets its own class containing all operations on that resource:
+
+| Resource    | Tool class         | MCP tools it handles                                                           |
+|-------------|--------------------|--------------------------------------------------------------------------------|
+| accounts    | `AccountTools`     | `buxfer_list_accounts`                                                         |
+| transactions| `TransactionTools` | `buxfer_list_transactions`, `buxfer_add_transaction`, `buxfer_edit_transaction`, `buxfer_delete_transaction`, `buxfer_upload_statement` |
+| tags        | `TagTools`         | `buxfer_list_tags`                                                             |
+| budgets     | `BudgetTools`      | `buxfer_list_budgets`                                                          |
+| reminders   | `ReminderTools`    | `buxfer_list_reminders`                                                        |
+| groups      | `GroupTools`       | `buxfer_list_groups`                                                           |
+| contacts    | `ContactTools`     | `buxfer_list_contacts`                                                         |
+| loans       | `LoanTools`        | `buxfer_list_loans`                                                            |
+
+Do not bundle unrelated resources into a single class (e.g. a catch-all `LookupTools`).
+
+### One class per file
+
+Every class (model, tool, or otherwise) lives in its own file named after it. No multi-class files.
+
 ## Shared Resources
 
 `shared/api-spec/buxfer-api.md` is the single authoritative reference for:

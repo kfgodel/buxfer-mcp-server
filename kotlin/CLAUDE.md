@@ -123,7 +123,12 @@ kotlin/
     └── tools/
         ├── TransactionTools.kt         # MCP tools: list/add/edit/delete/upload
         ├── AccountTools.kt             # MCP tool: list accounts
-        └── LookupTools.kt              # MCP tools: tags, budgets, reminders, groups, contacts, loans
+        ├── TagTools.kt                 # MCP tool: list tags
+        ├── BudgetTools.kt              # MCP tool: list budgets
+        ├── ReminderTools.kt            # MCP tool: list reminders
+        ├── GroupTools.kt               # MCP tool: list groups
+        ├── ContactTools.kt             # MCP tool: list contacts
+        └── LoanTools.kt                # MCP tool: list loans
 ```
 
 ## Key Dependencies
@@ -230,7 +235,7 @@ All tests load response JSON from `../shared/test-fixtures/responses/` (path inj
 ### Testing expectations
 
 Every class added to this project must have a corresponding test class. Specifically:
-- Each `*Tools.kt` → `*ToolsTest.kt`: verify tool→client delegation and JSON output.
+- Each `*Tools.kt` → `*ToolsTest.kt`: verify tool→client delegation and JSON output. Each test class covers the happy path and an error path (`isError = true`).
 - `BuxferClient.kt` → `BuxferClientTest.kt`: verify deserialization of every endpoint using fixture files.
 - New model fields added to `models/` should have a deserialization test in `BuxferClientTest`.
 

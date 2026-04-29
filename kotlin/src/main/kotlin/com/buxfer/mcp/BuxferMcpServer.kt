@@ -2,7 +2,12 @@ package com.buxfer.mcp
 
 import com.buxfer.mcp.api.BuxferClient
 import com.buxfer.mcp.tools.AccountTools
-import com.buxfer.mcp.tools.LookupTools
+import com.buxfer.mcp.tools.BudgetTools
+import com.buxfer.mcp.tools.ContactTools
+import com.buxfer.mcp.tools.GroupTools
+import com.buxfer.mcp.tools.LoanTools
+import com.buxfer.mcp.tools.ReminderTools
+import com.buxfer.mcp.tools.TagTools
 import com.buxfer.mcp.tools.TransactionTools
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
@@ -17,7 +22,12 @@ class BuxferMcpServer(client: BuxferClient) {
 
     private val transactionTools = TransactionTools(client)
     private val accountTools = AccountTools(client)
-    private val lookupTools = LookupTools(client)
+    private val tagTools = TagTools(client)
+    private val budgetTools = BudgetTools(client)
+    private val reminderTools = ReminderTools(client)
+    private val groupTools = GroupTools(client)
+    private val contactTools = ContactTools(client)
+    private val loanTools = LoanTools(client)
 
     private val server = Server(
         serverInfo = Implementation(name = "buxfer", version = "1.0.0"),
@@ -56,32 +66,32 @@ class BuxferMcpServer(client: BuxferClient) {
         addTool(
             name = "buxfer_list_tags",
             description = "List all Buxfer tags."
-        ) { _ -> lookupTools.listTags() }
+        ) { _ -> tagTools.listTags() }
 
         addTool(
             name = "buxfer_list_budgets",
             description = "List all Buxfer budgets."
-        ) { _ -> lookupTools.listBudgets() }
+        ) { _ -> budgetTools.listBudgets() }
 
         addTool(
             name = "buxfer_list_reminders",
             description = "List all Buxfer reminders."
-        ) { _ -> lookupTools.listReminders() }
+        ) { _ -> reminderTools.listReminders() }
 
         addTool(
             name = "buxfer_list_groups",
             description = "List all Buxfer groups."
-        ) { _ -> lookupTools.listGroups() }
+        ) { _ -> groupTools.listGroups() }
 
         addTool(
             name = "buxfer_list_contacts",
             description = "List all Buxfer contacts."
-        ) { _ -> lookupTools.listContacts() }
+        ) { _ -> contactTools.listContacts() }
 
         addTool(
             name = "buxfer_list_loans",
             description = "List all Buxfer loans."
-        ) { _ -> lookupTools.listLoans() }
+        ) { _ -> loanTools.listLoans() }
     }
 
     suspend fun start() {
