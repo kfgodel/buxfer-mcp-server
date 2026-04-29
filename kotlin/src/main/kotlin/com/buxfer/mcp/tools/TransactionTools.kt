@@ -4,10 +4,8 @@ import com.buxfer.mcp.api.BuxferClient
 import com.buxfer.mcp.api.buxferJson
 import com.buxfer.mcp.api.models.AddTransactionParams
 import com.buxfer.mcp.api.models.TransactionFilters
-import com.buxfer.mcp.api.models.UploadStatementResult
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull

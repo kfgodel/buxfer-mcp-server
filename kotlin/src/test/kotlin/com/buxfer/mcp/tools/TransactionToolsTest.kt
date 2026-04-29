@@ -3,7 +3,6 @@ package com.buxfer.mcp.tools
 import com.buxfer.mcp.api.BuxferApiException
 import com.buxfer.mcp.api.BuxferClient
 import com.buxfer.mcp.api.models.AccountRef
-import com.buxfer.mcp.api.models.AddTransactionParams
 import com.buxfer.mcp.api.models.Transaction
 import com.buxfer.mcp.api.models.TransactionFilters
 import com.buxfer.mcp.api.models.TransactionsResult
