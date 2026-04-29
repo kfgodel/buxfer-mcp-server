@@ -8,14 +8,8 @@ import io.mockk.coEvery
 import io.mockk.mockk
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.test.runTest
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.double
-import kotlinx.serialization.json.int
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
+import net.javacrumbs.jsonunit.assertj.assertThatJson
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -23,7 +17,6 @@ class BudgetToolsTest {
 
     private val mockClient = mockk<BuxferClient>()
     private lateinit var tools: BudgetTools
-    private val json = Json { ignoreUnknownKeys = true }
 
     @BeforeEach
     fun setUp() {
@@ -45,17 +38,16 @@ class BudgetToolsTest {
 
         val result = tools.listBudgets()
 
-        val parsed = json.parseToJsonElement((result.content[0] as TextContent).text).jsonArray
-        assertEquals(2, parsed.size)
-        val first = parsed[0].jsonObject
-        assertEquals(58182, first["id"]!!.jsonPrimitive.int)
-        assertEquals("Budget 58182", first["name"]!!.jsonPrimitive.content)
-        assertEquals(946905.21, first["spent"]!!.jsonPrimitive.double)
-        assertEquals("schedule_all", first["editMode"]!!.jsonPrimitive.content)
-        assertEquals(1, first["periodSize"]!!.jsonPrimitive.int)
-        assertEquals("2022-03-01", first["startDate"]!!.jsonPrimitive.content)
-        assertEquals(57904, first["tagId"]!!.jsonPrimitive.int)
-        assertEquals(57904, first["tag"]!!.jsonObject["id"]!!.jsonPrimitive.int)
+        val text = (result.content[0] as TextContent).text
+        assertThatJson(text).isArray.hasSize(2)
+        assertThatJson(text).inPath("$[0].id").isEqualTo(58182)
+        assertThatJson(text).inPath("$[0].name").isEqualTo("Budget 58182")
+        assertThatJson(text).inPath("$[0].spent").isEqualTo(946905.21)
+        assertThatJson(text).inPath("$[0].editMode").isEqualTo("schedule_all")
+        assertThatJson(text).inPath("$[0].periodSize").isEqualTo(1)
+        assertThatJson(text).inPath("$[0].startDate").isEqualTo("2022-03-01")
+        assertThatJson(text).inPath("$[0].tagId").isEqualTo(57904)
+        assertThatJson(text).inPath("$[0].tag.id").isEqualTo(57904)
     }
 
     @Test
@@ -64,7 +56,7 @@ class BudgetToolsTest {
 
         val result = tools.listBudgets()
 
-        assertTrue(result.isError == true)
-        assertTrue((result.content[0] as TextContent).text.contains("Error: boom"))
+        assertThat(result.isError).isTrue()
+        assertThat((result.content[0] as TextContent).text).contains("Error: boom")
     }
 }

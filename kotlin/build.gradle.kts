@@ -20,6 +20,9 @@ val serializationVersion = "1.9.0"
 val junitVersion = "5.14.4"
 val mockkVersion = "1.14.9"
 val coroutinesTestVersion = "1.10.2"
+val assertjVersion = "3.27.7"
+val jsonUnitVersion = "4.1.0"
+val jacksonVersion = "2.19.0"
 
 dependencies {
     // MCP server protocol
@@ -42,6 +45,9 @@ dependencies {
     testImplementation("io.mockk:mockk:$mockkVersion")
     testImplementation("io.ktor:ktor-client-mock:$ktorVersion")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesTestVersion")
+    testImplementation("org.assertj:assertj-core:$assertjVersion")
+    testImplementation("net.javacrumbs.json-unit:json-unit-assertj:$jsonUnitVersion")
+    testImplementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

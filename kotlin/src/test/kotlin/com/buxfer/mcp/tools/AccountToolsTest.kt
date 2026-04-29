@@ -7,14 +7,8 @@ import io.mockk.coEvery
 import io.mockk.mockk
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.test.runTest
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.double
-import kotlinx.serialization.json.int
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
+import net.javacrumbs.jsonunit.assertj.assertThatJson
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -22,7 +16,6 @@ class AccountToolsTest {
 
     private val mockClient = mockk<BuxferClient>()
     private lateinit var tools: AccountTools
-    private val json = Json { ignoreUnknownKeys = true }
 
     private val fixtureAccounts = listOf(
         Account(id = 10350, name = "Test Account 10350", bank = "Test Bank", balance = 360.01, currency = "ARS"),
@@ -43,11 +36,11 @@ class AccountToolsTest {
 
         val result = tools.listAccounts()
 
-        val parsed = json.parseToJsonElement((result.content[0] as TextContent).text).jsonArray
-        assertEquals(5, parsed.size)
-        assertEquals(10350, parsed[0].jsonObject["id"]!!.jsonPrimitive.int)
-        assertEquals(360.01, parsed[0].jsonObject["balance"]!!.jsonPrimitive.double)
-        assertEquals("ARS", parsed[0].jsonObject["currency"]!!.jsonPrimitive.content)
+        val text = (result.content[0] as TextContent).text
+        assertThatJson(text).isArray.hasSize(5)
+        assertThatJson(text).inPath("$[0].id").isEqualTo(10350)
+        assertThatJson(text).inPath("$[0].balance").isEqualTo(360.01)
+        assertThatJson(text).inPath("$[0].currency").isEqualTo("ARS")
     }
 
     @Test
@@ -56,7 +49,7 @@ class AccountToolsTest {
 
         val result = tools.listAccounts()
 
-        assertTrue(result.isError == true)
-        assertTrue((result.content[0] as TextContent).text.contains("Error: boom"))
+        assertThat(result.isError).isTrue()
+        assertThat((result.content[0] as TextContent).text).contains("Error: boom")
     }
 }

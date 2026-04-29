@@ -8,13 +8,8 @@ import io.mockk.coEvery
 import io.mockk.mockk
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.test.runTest
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.int
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
+import net.javacrumbs.jsonunit.assertj.assertThatJson
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -22,7 +17,6 @@ class ReminderToolsTest {
 
     private val mockClient = mockk<BuxferClient>()
     private lateinit var tools: ReminderTools
-    private val json = Json { ignoreUnknownKeys = true }
 
     @BeforeEach
     fun setUp() {
@@ -45,17 +39,16 @@ class ReminderToolsTest {
 
         val result = tools.listReminders()
 
-        val parsed = json.parseToJsonElement((result.content[0] as TextContent).text).jsonArray
-        assertEquals(2, parsed.size)
-        val first = parsed[0].jsonObject
-        assertEquals(57872, first["id"]!!.jsonPrimitive.int)
-        assertEquals("Reminder description 57872", first["description"]!!.jsonPrimitive.content)
-        assertEquals("month", first["periodUnit"]!!.jsonPrimitive.content)
-        assertEquals("2026-05-03", first["nextExecution"]!!.jsonPrimitive.content)
-        assertEquals(7, first["numDaysForDueDate"]!!.jsonPrimitive.int)
-        assertEquals(19297, first["tags"]!!.jsonArray[0].jsonObject["id"]!!.jsonPrimitive.int)
-        assertEquals("expense", first["type"]!!.jsonPrimitive.content)
-        assertEquals(3, first["transactionType"]!!.jsonPrimitive.int)
+        val text = (result.content[0] as TextContent).text
+        assertThatJson(text).isArray.hasSize(2)
+        assertThatJson(text).inPath("$[0].id").isEqualTo(57872)
+        assertThatJson(text).inPath("$[0].description").isEqualTo("Reminder description 57872")
+        assertThatJson(text).inPath("$[0].periodUnit").isEqualTo("month")
+        assertThatJson(text).inPath("$[0].nextExecution").isEqualTo("2026-05-03")
+        assertThatJson(text).inPath("$[0].numDaysForDueDate").isEqualTo(7)
+        assertThatJson(text).inPath("$[0].tags[0].id").isEqualTo(19297)
+        assertThatJson(text).inPath("$[0].type").isEqualTo("expense")
+        assertThatJson(text).inPath("$[0].transactionType").isEqualTo(3)
     }
 
     @Test
@@ -64,7 +57,7 @@ class ReminderToolsTest {
 
         val result = tools.listReminders()
 
-        assertTrue(result.isError == true)
-        assertTrue((result.content[0] as TextContent).text.contains("Error: boom"))
+        assertThat(result.isError).isTrue()
+        assertThat((result.content[0] as TextContent).text).contains("Error: boom")
     }
 }

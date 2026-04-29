@@ -12,17 +12,11 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.test.runTest
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.int
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
+import net.javacrumbs.jsonunit.assertj.assertThatJson
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -30,7 +24,6 @@ class TransactionToolsTest {
 
     private val mockClient = mockk<BuxferClient>()
     private lateinit var tools: TransactionTools
-    private val json = Json { ignoreUnknownKeys = true }
 
     private val fixtureTransactions = listOf(
         Transaction(id = 33040, description = "Transaction 33040", amount = 0.01, accountId = 10350,
@@ -82,21 +75,18 @@ class TransactionToolsTest {
 
         val result = tools.listTransactions(null)
 
-        val parsed = json.parseToJsonElement((result.content[0] as TextContent).text).jsonObject
-        val txArray = parsed["transactions"]!!.jsonArray
-        assertEquals(5, txArray.size)
-        assertEquals(5, parsed["numTransactions"]!!.jsonPrimitive.int)
-        val first = txArray[0].jsonObject
-        assertEquals(33040, first["id"]!!.jsonPrimitive.int)
-        assertEquals("expense", first["type"]!!.jsonPrimitive.content)
-        assertEquals("expense", first["transactionType"]!!.jsonPrimitive.content)
-        assertEquals(false, first["isFutureDated"]!!.jsonPrimitive.boolean)
-        assertEquals(false, first["isPending"]!!.jsonPrimitive.boolean)
-        assertEquals(0, txArray[0].jsonObject["tagNames"]!!.jsonArray.size)
+        val text = (result.content[0] as TextContent).text
+        assertThatJson(text).inPath("$.transactions").isArray.hasSize(5)
+        assertThatJson(text).inPath("$.numTransactions").isEqualTo(5)
+        assertThatJson(text).inPath("$.transactions[0].id").isEqualTo(33040)
+        assertThatJson(text).inPath("$.transactions[0].type").isEqualTo("expense")
+        assertThatJson(text).inPath("$.transactions[0].transactionType").isEqualTo("expense")
+        assertThatJson(text).inPath("$.transactions[0].isFutureDated").isEqualTo(false)
+        assertThatJson(text).inPath("$.transactions[0].isPending").isEqualTo(false)
+        assertThatJson(text).inPath("$.transactions[0].tagNames").isArray.hasSize(0)
         // transfer has fromAccount/toAccount
-        val transfer = txArray[3].jsonObject
-        assertEquals(603017, transfer["fromAccount"]!!.jsonObject["id"]!!.jsonPrimitive.int)
-        assertEquals(1100868, transfer["toAccount"]!!.jsonObject["id"]!!.jsonPrimitive.int)
+        assertThatJson(text).inPath("$.transactions[3].fromAccount.id").isEqualTo(603017)
+        assertThatJson(text).inPath("$.transactions[3].toAccount.id").isEqualTo(1100868)
     }
 
     @Test
@@ -129,9 +119,9 @@ class TransactionToolsTest {
 
         val result = tools.addTransaction(args)
 
-        val parsed = json.parseToJsonElement((result.content[0] as TextContent).text).jsonObject
-        assertEquals(33645, parsed["id"]!!.jsonPrimitive.int)
-        assertEquals("Test Transaction", parsed["description"]!!.jsonPrimitive.content)
+        val text = (result.content[0] as TextContent).text
+        assertThatJson(text).inPath("$.id").isEqualTo(33645)
+        assertThatJson(text).inPath("$.description").isEqualTo("Test Transaction")
     }
 
     @Test
@@ -147,9 +137,9 @@ class TransactionToolsTest {
 
         val result = tools.editTransaction(args)
 
-        val parsed = json.parseToJsonElement((result.content[0] as TextContent).text).jsonObject
-        assertEquals(33645, parsed["id"]!!.jsonPrimitive.int)
-        assertEquals("Test Transaction (edited)", parsed["description"]!!.jsonPrimitive.content)
+        val text = (result.content[0] as TextContent).text
+        assertThatJson(text).inPath("$.id").isEqualTo(33645)
+        assertThatJson(text).inPath("$.description").isEqualTo("Test Transaction (edited)")
     }
 
     @Test
@@ -159,9 +149,9 @@ class TransactionToolsTest {
 
         val result = tools.deleteTransaction(args)
 
-        val parsed = json.parseToJsonElement((result.content[0] as TextContent).text).jsonObject
-        assertTrue(parsed["deleted"]!!.jsonPrimitive.content.toBoolean())
-        assertEquals(33645, parsed["id"]!!.jsonPrimitive.int)
+        val text = (result.content[0] as TextContent).text
+        assertThatJson(text).inPath("$.deleted").isEqualTo(true)
+        assertThatJson(text).inPath("$.id").isEqualTo(33645)
     }
 
     @Test
@@ -174,9 +164,9 @@ class TransactionToolsTest {
 
         val result = tools.uploadStatement(args)
 
-        val parsed = json.parseToJsonElement((result.content[0] as TextContent).text).jsonObject
-        assertEquals(15, parsed["uploaded"]!!.jsonPrimitive.int)
-        assertEquals(1234.56, parsed["balance"]!!.jsonPrimitive.content.toDouble())
+        val text = (result.content[0] as TextContent).text
+        assertThatJson(text).inPath("$.uploaded").isEqualTo(15)
+        assertThatJson(text).inPath("$.balance").isEqualTo(1234.56)
     }
 
     @Test
@@ -185,7 +175,7 @@ class TransactionToolsTest {
 
         val result = tools.listTransactions(null)
 
-        assertTrue(result.isError == true)
-        assertTrue((result.content[0] as TextContent).text.contains("Error: boom"))
+        assertThat(result.isError).isTrue()
+        assertThat((result.content[0] as TextContent).text).contains("Error: boom")
     }
 }
