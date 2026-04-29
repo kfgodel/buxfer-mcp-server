@@ -1,147 +1,173 @@
 package com.buxfer.mcp.api
 
 import com.buxfer.mcp.TestFixtureLoader
+import com.buxfer.mcp.api.models.AddTransactionParams
+import com.buxfer.mcp.api.models.TransactionFilters
 import io.ktor.client.engine.mock.*
 import io.ktor.http.*
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-
-// TODO: Implement all tests once BuxferClient is implemented.
-//
-// BuxferClient must accept an optional HttpClientEngine parameter so tests can
-// inject a MockEngine without making real network calls:
-//   class BuxferClient(engine: HttpClientEngine = CIO.create()) { ... }
-//
-// Test strategy:
-//   - Each test creates a MockEngine that returns the relevant fixture JSON.
-//   - Assertions verify that BuxferClient correctly deserializes the response
-//     into the expected model types.
-//   - A separate test verifies that HTTP errors / Buxfer error responses
-//     are translated into BuxferApiException.
-//
-// See shared/test-fixtures/responses/ for all fixture files.
-// See shared/api-spec/buxfer-api.md for full response contracts.
+import org.junit.jupiter.api.Assertions.assertEquals
 
 class BuxferClientTest {
 
     private lateinit var client: BuxferClient
 
+    private fun mockEngine(overrides: Map<String, String> = emptyMap()) = MockEngine { request ->
+        val path = request.url.encodedPath
+        val body = overrides.entries.firstOrNull { path.endsWith(it.key) }?.value
+            ?: when {
+                path.endsWith("/login") -> TestFixtureLoader.load("login")
+                path.endsWith("/accounts") -> TestFixtureLoader.load("accounts")
+                path.endsWith("/transactions") -> TestFixtureLoader.load("transactions")
+                path.endsWith("/transaction_add") -> TestFixtureLoader.load("transaction_add")
+                path.endsWith("/transaction_edit") -> TestFixtureLoader.load("transaction_edit")
+                path.endsWith("/transaction_delete") -> TestFixtureLoader.load("transaction_delete")
+                path.endsWith("/upload_statement") -> """{"response":{"status":"OK","uploaded":15,"balance":1234.56}}"""
+                path.endsWith("/tags") -> TestFixtureLoader.load("tags")
+                path.endsWith("/budgets") -> TestFixtureLoader.load("budgets")
+                path.endsWith("/reminders") -> TestFixtureLoader.load("reminders")
+                path.endsWith("/groups") -> TestFixtureLoader.load("groups")
+                path.endsWith("/contacts") -> TestFixtureLoader.load("contacts")
+                path.endsWith("/loans") -> TestFixtureLoader.load("loans")
+                else -> """{"response":{"status":"error","error":"Not found"}}"""
+            }
+        respond(body, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+    }
+
     @BeforeEach
     fun setUp() {
-        // TODO: Construct BuxferClient with a MockEngine that dispatches
-        //       fixture responses based on request.url.encodedPath.
-        //       Pre-set client.token to a fake value ("test-token") so
-        //       individual tests don't need to call login().
+        client = BuxferClient(mockEngine())
+        client.token = "test-token"
     }
 
     @Test
     fun `login stores token on success`() = runTest {
-        // TODO: MockEngine returns {"status":"OK","token":"test-token"}
-        //       Assert that calling login() stores the token internally.
-        TODO("Not yet implemented")
+        val loginClient = BuxferClient(mockEngine())
+        loginClient.login("user@example.com", "password")
+        assertEquals("test-mock-token", loginClient.token)
     }
 
     @Test
     fun `getAccounts returns parsed Account list`() = runTest {
-        // TODO: MockEngine returns TestFixtureLoader.load("accounts")
-        //       Call client.getAccounts() and assert:
-        //         - list has 3 items
-        //         - first account id == 1001, name == "Test Checking", balance == 2547.83
-        TODO("Not yet implemented")
+        val accounts = client.getAccounts()
+        assertEquals(5, accounts.size)
+        assertEquals(10350, accounts[0].id)
+        assertEquals(360.01, accounts[0].balance)
+        assertEquals("ARS", accounts[0].currency)
     }
 
     @Test
     fun `getTransactions returns parsed Transaction list`() = runTest {
-        // TODO: MockEngine returns TestFixtureLoader.load("transactions")
-        //       Assert list size == 5, first transaction type == "expense"
-        TODO("Not yet implemented")
+        val result = client.getTransactions()
+        assertEquals(5, result.transactions.size)
+        assertEquals(5, result.numTransactions)
+        assertEquals(33040, result.transactions[0].id)
+        assertEquals("expense", result.transactions[0].type)
     }
 
     @Test
     fun `addTransaction returns created Transaction`() = runTest {
-        // TODO: MockEngine returns TestFixtureLoader.load("transaction_add")
-        //       Call client.addTransaction(...) and assert returned id == 5099
-        TODO("Not yet implemented")
+        val tx = client.addTransaction(
+            AddTransactionParams("Test Transaction", 0.01, 10350, "2026-04-26")
+        )
+        assertEquals(33645, tx.id)
+        assertEquals("expense", tx.type)
     }
 
     @Test
     fun `editTransaction returns updated Transaction`() = runTest {
-        // TODO: MockEngine returns TestFixtureLoader.load("transaction_edit")
-        //       Assert returned description == "Updated Grocery Store"
-        TODO("Not yet implemented")
+        val tx = client.editTransaction(
+            33645,
+            AddTransactionParams("Test Transaction (edited)", 0.01, 10350, "2026-04-26")
+        )
+        assertEquals(33645, tx.id)
+        assertEquals("Test Transaction (edited)", tx.description)
     }
 
     @Test
     fun `deleteTransaction succeeds without exception`() = runTest {
-        // TODO: MockEngine returns TestFixtureLoader.load("transaction_delete")
-        //       Assert no exception is thrown
-        TODO("Not yet implemented")
+        client.deleteTransaction(33645)
+        // no exception = success
     }
 
     @Test
     fun `uploadStatement returns upload count and balance`() = runTest {
-        // TODO: MockEngine returns TestFixtureLoader.load("upload_statement")
-        //       Assert uploaded == 5, balance == 2547.83
-        TODO("Not yet implemented")
+        val result = client.uploadStatement(10350, "csv-content")
+        assertEquals(15, result.uploaded)
+        assertEquals(1234.56, result.balance)
     }
 
     @Test
     fun `getTags returns parsed Tag list with parentId`() = runTest {
-        // TODO: MockEngine returns TestFixtureLoader.load("tags")
-        //       Assert list size == 6, second tag parentId == 3001
-        TODO("Not yet implemented")
+        val tags = client.getTags()
+        assertEquals(3, tags.size)
+        assertEquals(9125, tags[0].id)
+        assertEquals(58046, tags[2].parentId)
     }
 
     @Test
     fun `getBudgets returns parsed Budget list`() = runTest {
-        // TODO: MockEngine returns TestFixtureLoader.load("budgets")
-        //       Assert first budget remaining == 480.57
-        TODO("Not yet implemented")
+        val budgets = client.getBudgets()
+        assertEquals(2, budgets.size)
+        assertEquals(58182, budgets[0].id)
+        assertEquals("Budget 58182", budgets[0].name)
+        assertEquals(946905.21, budgets[0].spent)
+        assertEquals(-896905.21, budgets[0].balance)
     }
 
     @Test
     fun `getReminders returns parsed Reminder list`() = runTest {
-        // TODO: MockEngine returns TestFixtureLoader.load("reminders")
-        //       Assert first reminder name == "Rent Payment"
-        TODO("Not yet implemented")
+        val reminders = client.getReminders()
+        assertEquals(2, reminders.size)
+        assertEquals(57872, reminders[0].id)
+        assertEquals("Reminder 57872", reminders[0].name)
+        assertEquals("Reminder description 57872", reminders[0].description)
+        assertEquals("month", reminders[0].periodUnit)
     }
 
     @Test
-    fun `getGroups returns groups with nested members`() = runTest {
-        // TODO: MockEngine returns TestFixtureLoader.load("groups")
-        //       Assert first group name == "Roommates" and has 3 members
-        TODO("Not yet implemented")
+    fun `getGroups returns empty list from fixture`() = runTest {
+        val groups = client.getGroups()
+        assertEquals(0, groups.size)
     }
 
     @Test
     fun `getContacts returns parsed Contact list`() = runTest {
-        // TODO: MockEngine returns TestFixtureLoader.load("contacts")
-        //       Assert first contact email == "contact.one@example.com"
-        TODO("Not yet implemented")
+        val contacts = client.getContacts()
+        assertEquals(4, contacts.size)
+        assertEquals("contact.1@example.com", contacts[0].email)
     }
 
     @Test
     fun `getLoans returns parsed Loan list`() = runTest {
-        // TODO: MockEngine returns TestFixtureLoader.load("loans")
-        //       Assert first loan type == "contact"
-        TODO("Not yet implemented")
+        val loans = client.getLoans()
+        assertEquals(3, loans.size)
+        assertEquals("contact", loans[0].type)
     }
 
     @Test
     fun `throws BuxferApiException on non-OK status`() = runTest {
-        // TODO: MockEngine returns {"status":"error","error":"Invalid token"}
-        //       Assert that any API call throws BuxferApiException with that message
-        TODO("Not yet implemented")
+        val errorClient = BuxferClient(MockEngine { _ ->
+            respond(
+                """{"response":{"status":"error","error":"Invalid token"}}""",
+                HttpStatusCode.OK,
+                headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        })
+        errorClient.token = "bad-token"
+        val ex = assertThrows<BuxferApiException> { errorClient.getAccounts() }
+        assertEquals("Invalid token", ex.message)
     }
 
     @Test
     fun `throws on HTTP error response`() = runTest {
-        // TODO: MockEngine returns HTTP 500
-        //       Assert that any API call throws an appropriate exception
-        TODO("Not yet implemented")
+        val errorClient = BuxferClient(MockEngine { _ ->
+            respond("Server Error", HttpStatusCode.InternalServerError)
+        })
+        errorClient.token = "test-token"
+        assertThrows<BuxferApiException> { errorClient.getAccounts() }
     }
 }

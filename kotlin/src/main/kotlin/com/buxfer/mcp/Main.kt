@@ -1,18 +1,26 @@
 package com.buxfer.mcp
 
-// TODO: Start the MCP server over stdio transport.
-//
-// Steps:
-//   1. Read BUXFER_EMAIL and BUXFER_PASSWORD from environment variables.
-//   2. Instantiate BuxferClient and call login() to obtain a session token.
-//   3. Instantiate BuxferMcpServer with the authenticated client.
-//   4. Call BuxferMcpServer.start() which blocks on stdin until the client disconnects.
-//
-// Error handling:
-//   - If credentials are missing, print to stderr and exit with code 1.
-//   - If login fails, print the error to stderr and exit with code 1.
-//   - Never write anything to stdout before starting the MCP server (breaks stdio transport).
+import com.buxfer.mcp.api.BuxferApiException
+import com.buxfer.mcp.api.BuxferClient
+import kotlin.system.exitProcess
+import kotlinx.coroutines.runBlocking
 
 fun main() {
-    TODO("Not yet implemented")
+    val email = System.getenv("BUXFER_EMAIL")
+    val password = System.getenv("BUXFER_PASSWORD")
+    if (email.isNullOrBlank() || password.isNullOrBlank()) {
+        System.err.println("BUXFER_EMAIL and BUXFER_PASSWORD must be set")
+        exitProcess(1)
+    }
+
+    runBlocking {
+        val client = BuxferClient()
+        try {
+            client.login(email, password)
+        } catch (e: BuxferApiException) {
+            System.err.println("Login failed: ${e.message}")
+            exitProcess(1)
+        }
+        BuxferMcpServer(client).start()
+    }
 }

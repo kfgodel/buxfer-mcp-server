@@ -1,18 +1,17 @@
 package com.buxfer.mcp.tools
 
 import com.buxfer.mcp.api.BuxferClient
-
-// TODO: Implement MCP tool handlers for account operations.
-//
-// Tools to implement:
-//
-//   buxfer_list_accounts
-//     Input: none
-//     Action: GET /api/accounts
-//     Output: JSON array of Account objects (id, name, bank, balance, lastSynced)
-//
-// See ../../../../../../shared/api-spec/buxfer-api.md for the response shape.
+import com.buxfer.mcp.api.buxferJson
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
+import io.modelcontextprotocol.kotlin.sdk.types.TextContent
+import kotlinx.serialization.encodeToString
 
 class AccountTools(private val client: BuxferClient) {
-    // TODO: Implement tool handler methods
+
+    suspend fun listAccounts(): CallToolResult = runCatching {
+        val accounts = client.getAccounts()
+        CallToolResult(content = listOf(TextContent(buxferJson.encodeToString(accounts))))
+    }.getOrElse { e ->
+        CallToolResult(content = listOf(TextContent("Error: ${e.message}")), isError = true)
+    }
 }

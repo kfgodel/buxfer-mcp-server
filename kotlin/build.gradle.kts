@@ -66,6 +66,4 @@ tasks.test {
     useJUnitPlatform()
     // Shared anonymized fixtures used by all language implementations
     systemProperty("fixtures.dir", "${project.projectDir}/../shared/test-fixtures/responses")
-    // Run only unit tests by default; skip capture tests (require real credentials)
-    excludeTags("capture")
 }

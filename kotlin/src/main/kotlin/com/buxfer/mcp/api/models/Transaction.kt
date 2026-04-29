@@ -1,32 +1,54 @@
 package com.buxfer.mcp.api.models
 
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-
-// TODO: Implement Transaction, TransactionFilters, AddTransactionParams,
-//       and UploadStatementResponse data classes.
-//
-// Transaction fields: id, description, amount, accountId, date, tags, type, status
-// TransactionFilters: accountId?, accountName?, tagId?, tagName?, startDate?, endDate?,
-//                     budgetId?, budgetName?, contactId?, contactName?,
-//                     groupId?, groupName?, status?, page?
-// AddTransactionParams: description, amount, accountId, date, tags?, type?, status?,
-//                       plus optional sharedBill/loan/paidForFriend fields
-//
-// Annotate with @Serializable. Use @SerialName where JSON keys differ from Kotlin naming.
-// See shared/api-spec/buxfer-api.md for full field details.
 
 @Serializable
 data class Transaction(
     val id: Int = 0,
     val description: String = "",
     val amount: Double = 0.0,
-    @SerialName("accountId") val accountId: Int = 0,
+    val accountId: Int? = null,
+    val accountName: String = "",
     val date: String = "",
     val tags: String = "",
     val type: String = "expense",
     val status: String = "cleared"
 )
 
-// TODO: Add TransactionFilters, AddTransactionParams, TransactionsResponse,
-//       UploadStatementResponse
+data class TransactionFilters(
+    val accountId: Int? = null,
+    val accountName: String? = null,
+    val tagId: Int? = null,
+    val tagName: String? = null,
+    val startDate: String? = null,
+    val endDate: String? = null,
+    val budgetId: Int? = null,
+    val budgetName: String? = null,
+    val contactId: Int? = null,
+    val contactName: String? = null,
+    val groupId: Int? = null,
+    val groupName: String? = null,
+    val status: String? = null,
+    val page: Int? = null
+)
+
+data class AddTransactionParams(
+    val description: String,
+    val amount: Double,
+    val accountId: Int,
+    val date: String,
+    val tags: String? = null,
+    val type: String? = null,
+    val status: String? = null
+)
+
+data class TransactionsResult(
+    val transactions: List<Transaction>,
+    val numTransactions: Int
+)
+
+@Serializable
+data class UploadStatementResult(
+    val uploaded: Int,
+    val balance: Double
+)
