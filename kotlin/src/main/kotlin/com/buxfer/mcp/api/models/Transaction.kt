@@ -3,6 +3,12 @@ package com.buxfer.mcp.api.models
 import kotlinx.serialization.Serializable
 
 @Serializable
+data class AccountRef(
+    val id: Int = 0,
+    val name: String = ""
+)
+
+@Serializable
 data class Transaction(
     val id: Int = 0,
     val description: String = "",
@@ -12,7 +18,14 @@ data class Transaction(
     val date: String = "",
     val tags: String = "",
     val type: String = "expense",
-    val status: String = "cleared"
+    val status: String = "cleared",
+    val transactionType: String? = null,
+    val expenseAmount: Double? = null,
+    val tagNames: List<String>? = null,
+    val isFutureDated: Boolean? = null,
+    val isPending: Boolean? = null,
+    val fromAccount: AccountRef? = null,
+    val toAccount: AccountRef? = null
 )
 
 data class TransactionFilters(

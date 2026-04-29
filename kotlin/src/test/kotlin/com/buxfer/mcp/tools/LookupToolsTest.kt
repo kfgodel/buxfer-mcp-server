@@ -52,9 +52,14 @@ class LookupToolsTest {
 
     @Test
     fun `listBudgets returns JSON array of budgets`() = runTest {
+        val tag = Tag(id = 57904, name = "Budget Tag 57904", relativeName = "budget tag 57904", parentId = 58046)
         val budgets = listOf(
-            Budget(id = 58182, name = "Budget 58182", limit = 50000.0, spent = 946905.21, balance = -896905.21, period = "Apr", periodUnit = "month"),
-            Budget(id = 58183, name = "Budget 58183", limit = 40000.0, spent = 65700.0, balance = -25700.0, period = "Apr", periodUnit = "month")
+            Budget(id = 58182, name = "Budget 58182", limit = 50000.0, spent = 946905.21, balance = -896905.21,
+                period = "Apr", periodUnit = "month", editMode = "schedule_all", periodSize = 1,
+                startDate = "2022-03-01", stopDate = null, budgetId = 58182, type = 1,
+                tagId = 57904, tag = tag, isRolledOver = 0, eventId = 34183),
+            Budget(id = 58183, name = "Budget 58183", limit = 40000.0, spent = 65700.0, balance = -25700.0,
+                period = "Apr", periodUnit = "month")
         )
         coEvery { mockClient.getBudgets() } returns budgets
 
@@ -62,16 +67,28 @@ class LookupToolsTest {
 
         val parsed = json.parseToJsonElement((result.content[0] as TextContent).text).jsonArray
         assertEquals(2, parsed.size)
-        assertEquals(58182, parsed[0].jsonObject["id"]!!.jsonPrimitive.int)
-        assertEquals("Budget 58182", parsed[0].jsonObject["name"]!!.jsonPrimitive.content)
-        assertEquals(946905.21, parsed[0].jsonObject["spent"]!!.jsonPrimitive.double)
+        val first = parsed[0].jsonObject
+        assertEquals(58182, first["id"]!!.jsonPrimitive.int)
+        assertEquals("Budget 58182", first["name"]!!.jsonPrimitive.content)
+        assertEquals(946905.21, first["spent"]!!.jsonPrimitive.double)
+        assertEquals("schedule_all", first["editMode"]!!.jsonPrimitive.content)
+        assertEquals(1, first["periodSize"]!!.jsonPrimitive.int)
+        assertEquals("2022-03-01", first["startDate"]!!.jsonPrimitive.content)
+        assertEquals(57904, first["tagId"]!!.jsonPrimitive.int)
+        assertEquals(57904, first["tag"]!!.jsonObject["id"]!!.jsonPrimitive.int)
     }
 
     @Test
     fun `listReminders returns JSON array of reminders`() = runTest {
+        val reminderTag = Tag(id = 19297, name = "Tag 19297", relativeName = "tag 19297", parentId = 58082)
         val reminders = listOf(
-            Reminder(id = 57872, name = "Reminder 57872", description = "Reminder description 57872", startDate = "2026-02-03", periodUnit = "month", amount = 3.44, accountId = 13872),
-            Reminder(id = 6886, name = "Reminder 6886", description = "Reminder description 6886", startDate = "2026-03-16", periodUnit = "month", amount = 39612.63, accountId = 605)
+            Reminder(id = 57872, name = "Reminder 57872", description = "Reminder description 57872",
+                startDate = "2026-02-03", periodUnit = "month", amount = 3.44, accountId = 13872,
+                nextExecution = "2026-05-03", dueDateDescription = "2026-05-03", numDaysForDueDate = 7,
+                tags = listOf(reminderTag), editMode = "schedule_all", periodSize = 1, stopDate = null,
+                type = "expense", transactionType = 3),
+            Reminder(id = 6886, name = "Reminder 6886", description = "Reminder description 6886",
+                startDate = "2026-03-16", periodUnit = "month", amount = 39612.63, accountId = 605)
         )
         coEvery { mockClient.getReminders() } returns reminders
 
@@ -79,9 +96,15 @@ class LookupToolsTest {
 
         val parsed = json.parseToJsonElement((result.content[0] as TextContent).text).jsonArray
         assertEquals(2, parsed.size)
-        assertEquals(57872, parsed[0].jsonObject["id"]!!.jsonPrimitive.int)
-        assertEquals("Reminder description 57872", parsed[0].jsonObject["description"]!!.jsonPrimitive.content)
-        assertEquals("month", parsed[0].jsonObject["periodUnit"]!!.jsonPrimitive.content)
+        val first = parsed[0].jsonObject
+        assertEquals(57872, first["id"]!!.jsonPrimitive.int)
+        assertEquals("Reminder description 57872", first["description"]!!.jsonPrimitive.content)
+        assertEquals("month", first["periodUnit"]!!.jsonPrimitive.content)
+        assertEquals("2026-05-03", first["nextExecution"]!!.jsonPrimitive.content)
+        assertEquals(7, first["numDaysForDueDate"]!!.jsonPrimitive.int)
+        assertEquals(19297, first["tags"]!!.jsonArray[0].jsonObject["id"]!!.jsonPrimitive.int)
+        assertEquals("expense", first["type"]!!.jsonPrimitive.content)
+        assertEquals(3, first["transactionType"]!!.jsonPrimitive.int)
     }
 
     @Test

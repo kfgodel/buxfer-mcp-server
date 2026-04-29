@@ -64,8 +64,19 @@ class BuxferClientTest {
         val result = client.getTransactions()
         assertEquals(5, result.transactions.size)
         assertEquals(5, result.numTransactions)
-        assertEquals(33040, result.transactions[0].id)
-        assertEquals("expense", result.transactions[0].type)
+        val first = result.transactions[0]
+        assertEquals(33040, first.id)
+        assertEquals("expense", first.type)
+        assertEquals("expense", first.transactionType)
+        assertEquals(0.01, first.expenseAmount)
+        assertEquals(emptyList<String>(), first.tagNames)
+        assertEquals(false, first.isFutureDated)
+        assertEquals(false, first.isPending)
+        // transfer transaction has fromAccount/toAccount
+        val transfer = result.transactions[3]
+        assertEquals(603017, transfer.fromAccount?.id)
+        assertEquals("Galicia ARS", transfer.fromAccount?.name)
+        assertEquals(1100868, transfer.toAccount?.id)
     }
 
     @Test
@@ -112,20 +123,44 @@ class BuxferClientTest {
     fun `getBudgets returns parsed Budget list`() = runTest {
         val budgets = client.getBudgets()
         assertEquals(2, budgets.size)
-        assertEquals(58182, budgets[0].id)
-        assertEquals("Budget 58182", budgets[0].name)
-        assertEquals(946905.21, budgets[0].spent)
-        assertEquals(-896905.21, budgets[0].balance)
+        val first = budgets[0]
+        assertEquals(58182, first.id)
+        assertEquals("Budget 58182", first.name)
+        assertEquals(946905.21, first.spent)
+        assertEquals(-896905.21, first.balance)
+        assertEquals("schedule_all", first.editMode)
+        assertEquals(1, first.periodSize)
+        assertEquals("2022-03-01", first.startDate)
+        assertEquals(null, first.stopDate)
+        assertEquals(58182, first.budgetId)
+        assertEquals(1, first.type)
+        assertEquals(57904, first.tagId)
+        assertEquals(57904, first.tag?.id)
+        assertEquals("Budget Tag 57904", first.tag?.name)
+        assertEquals(0, first.isRolledOver)
+        assertEquals(34183, first.eventId)
     }
 
     @Test
     fun `getReminders returns parsed Reminder list`() = runTest {
         val reminders = client.getReminders()
         assertEquals(2, reminders.size)
-        assertEquals(57872, reminders[0].id)
-        assertEquals("Reminder 57872", reminders[0].name)
-        assertEquals("Reminder description 57872", reminders[0].description)
-        assertEquals("month", reminders[0].periodUnit)
+        val first = reminders[0]
+        assertEquals(57872, first.id)
+        assertEquals("Reminder 57872", first.name)
+        assertEquals("Reminder description 57872", first.description)
+        assertEquals("month", first.periodUnit)
+        assertEquals("2026-05-03", first.nextExecution)
+        assertEquals("2026-05-03", first.dueDateDescription)
+        assertEquals(7, first.numDaysForDueDate)
+        assertEquals(1, first.tags?.size)
+        assertEquals(19297, first.tags?.get(0)?.id)
+        assertEquals("Tag 19297", first.tags?.get(0)?.name)
+        assertEquals("schedule_all", first.editMode)
+        assertEquals(1, first.periodSize)
+        assertEquals(null, first.stopDate)
+        assertEquals("expense", first.type)
+        assertEquals(3, first.transactionType)
     }
 
     @Test

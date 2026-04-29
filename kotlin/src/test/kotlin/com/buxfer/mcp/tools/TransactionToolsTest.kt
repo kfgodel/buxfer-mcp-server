@@ -2,6 +2,7 @@ package com.buxfer.mcp.tools
 
 import com.buxfer.mcp.api.BuxferApiException
 import com.buxfer.mcp.api.BuxferClient
+import com.buxfer.mcp.api.models.AccountRef
 import com.buxfer.mcp.api.models.AddTransactionParams
 import com.buxfer.mcp.api.models.Transaction
 import com.buxfer.mcp.api.models.TransactionFilters
@@ -14,6 +15,7 @@ import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
@@ -32,21 +34,42 @@ class TransactionToolsTest {
     private val json = Json { ignoreUnknownKeys = true }
 
     private val fixtureTransactions = listOf(
-        Transaction(id = 33040, description = "Transaction 33040", amount = 0.01, accountId = 10350, accountName = "Test Account", date = "2026-04-26", tags = "", type = "expense", status = "cleared"),
-        Transaction(id = 33026, description = "Transaction 33026", amount = 0.01, accountId = 10350, accountName = "Test Account", date = "2026-04-26", tags = "", type = "expense", status = "cleared"),
-        Transaction(id = 39962, description = "Transaction 39962", amount = 6.49, accountId = 12768, accountName = "Test Account", date = "2026-04-25", tags = "Tag 1", type = "expense", status = "pending"),
-        Transaction(id = 22654, description = "Transaction 22654", amount = 50000.0, accountId = null, accountName = "Test Account", date = "2026-04-24", tags = "", type = "transfer", status = "cleared"),
-        Transaction(id = 22653, description = "Transaction 22653", amount = 4.1, accountId = 18027, accountName = "Test Account", date = "2026-04-24", tags = "Tag 1", type = "income", status = "cleared")
+        Transaction(id = 33040, description = "Transaction 33040", amount = 0.01, accountId = 10350,
+            accountName = "Test Account", date = "2026-04-26", tags = "", type = "expense", status = "cleared",
+            transactionType = "expense", expenseAmount = 0.01, tagNames = emptyList(),
+            isFutureDated = false, isPending = false),
+        Transaction(id = 33026, description = "Transaction 33026", amount = 0.01, accountId = 10350,
+            accountName = "Test Account", date = "2026-04-26", tags = "", type = "expense", status = "cleared",
+            transactionType = "expense", expenseAmount = 0.01, tagNames = emptyList(),
+            isFutureDated = false, isPending = false),
+        Transaction(id = 39962, description = "Transaction 39962", amount = 6.49, accountId = 12768,
+            accountName = "Test Account", date = "2026-04-25", tags = "Tag 1", type = "expense", status = "pending",
+            transactionType = "expense", expenseAmount = 9024.1, tagNames = listOf("Tag 1"),
+            isFutureDated = false, isPending = true),
+        Transaction(id = 22654, description = "Transaction 22654", amount = 50000.0, accountId = null,
+            accountName = "Test Account", date = "2026-04-24", tags = "", type = "transfer", status = "cleared",
+            transactionType = "transfer", expenseAmount = 0.0, tagNames = emptyList(),
+            isFutureDated = false, isPending = false,
+            fromAccount = AccountRef(id = 603017, name = "Galicia ARS"),
+            toAccount = AccountRef(id = 1100868, name = "MercadoPago")),
+        Transaction(id = 22653, description = "Transaction 22653", amount = 4.1, accountId = 18027,
+            accountName = "Test Account", date = "2026-04-24", tags = "Tag 1", type = "income", status = "cleared",
+            transactionType = "income", expenseAmount = -4.1, tagNames = listOf("Tag 1"),
+            isFutureDated = false, isPending = false)
     )
 
     private val addedTransaction = Transaction(
         id = 33645, description = "Test Transaction", amount = 0.01, accountId = 10350,
-        accountName = "Test Account", date = "2026-04-26", tags = "", type = "expense", status = "cleared"
+        accountName = "Test Account", date = "2026-04-26", tags = "", type = "expense", status = "cleared",
+        transactionType = "expense", expenseAmount = 0.01, tagNames = emptyList(),
+        isFutureDated = false, isPending = false
     )
 
     private val editedTransaction = Transaction(
         id = 33645, description = "Test Transaction (edited)", amount = 0.01, accountId = 10350,
-        accountName = "Test Account", date = "2026-04-26", tags = "", type = "expense", status = "cleared"
+        accountName = "Test Account", date = "2026-04-26", tags = "", type = "expense", status = "cleared",
+        transactionType = "expense", expenseAmount = 0.01, tagNames = emptyList(),
+        isFutureDated = false, isPending = false
     )
 
     @BeforeEach
@@ -64,8 +87,17 @@ class TransactionToolsTest {
         val txArray = parsed["transactions"]!!.jsonArray
         assertEquals(5, txArray.size)
         assertEquals(5, parsed["numTransactions"]!!.jsonPrimitive.int)
-        assertEquals(33040, txArray[0].jsonObject["id"]!!.jsonPrimitive.int)
-        assertEquals("expense", txArray[0].jsonObject["type"]!!.jsonPrimitive.content)
+        val first = txArray[0].jsonObject
+        assertEquals(33040, first["id"]!!.jsonPrimitive.int)
+        assertEquals("expense", first["type"]!!.jsonPrimitive.content)
+        assertEquals("expense", first["transactionType"]!!.jsonPrimitive.content)
+        assertEquals(false, first["isFutureDated"]!!.jsonPrimitive.boolean)
+        assertEquals(false, first["isPending"]!!.jsonPrimitive.boolean)
+        assertEquals(0, txArray[0].jsonObject["tagNames"]!!.jsonArray.size)
+        // transfer has fromAccount/toAccount
+        val transfer = txArray[3].jsonObject
+        assertEquals(603017, transfer["fromAccount"]!!.jsonObject["id"]!!.jsonPrimitive.int)
+        assertEquals(1100868, transfer["toAccount"]!!.jsonObject["id"]!!.jsonPrimitive.int)
     }
 
     @Test

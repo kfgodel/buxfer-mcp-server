@@ -10,5 +10,15 @@ data class Budget(
     val spent: Double = 0.0,
     val balance: Double = 0.0,
     val period: String = "",
-    val periodUnit: String = ""
+    val periodUnit: String = "",
+    val editMode: String? = null,
+    val periodSize: Int? = null,
+    val startDate: String? = null,
+    val stopDate: String? = null,
+    val budgetId: Int? = null,
+    val type: Int? = null,
+    val tagId: Int? = null,
+    val tag: Tag? = null,
+    val isRolledOver: Int? = null,
+    val eventId: Int? = null
 )
