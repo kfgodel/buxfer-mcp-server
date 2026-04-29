@@ -240,6 +240,7 @@ All tool contracts are defined in `../shared/api-spec/buxfer-api.md`. Implement 
 
 ## Implementation Notes
 
+- **One class per file**: every class, data class, interface, object, or enum must live in its own `.kt` file named after it. No multi-class files.
 - `BuxferClient` must be thread-safe (token is set once, read many times — a simple `@Volatile` field suffices).
 - All Ktor calls should be `suspend` functions; the MCP SDK handles coroutine dispatch.
 - Use `kotlinx.serialization` annotations on model data classes (`@Serializable`, `@SerialName` where field names differ from Kotlin conventions).
