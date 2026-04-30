@@ -152,8 +152,11 @@ The server reads credentials and operational settings from environment variables
 |--------------------|----------|-----------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `BUXFER_EMAIL`     | yes      | —         | Buxfer account email. **Never logged** (PII / account identifier).                                                                                                                     |
 | `BUXFER_PASSWORD`  | yes      | —         | Buxfer account password. **Never logged**.                                                                                                                                             |
-| `BUXFER_LOG_DIR`   | no       | `./logs`  | Directory the rolling log appender writes to (relative to the server's working directory). Resolved by `logback.xml`.                                                                  |
-| `BUXFER_LOG_LEVEL` | no       | `INFO`    | Logback root level. Lowering to `DEBUG` enables HTTP request/response logging in `BuxferClient` and per-arg value logging in tools (the always-redacted set — password, token, statement — stays redacted at every level). |
+| `BUXFER_LOG_DIR`      | no       | `./logs`                       | Directory the rolling log appender writes to (relative to the server's working directory). Resolved by `logback.xml`.                                                                  |
+| `BUXFER_LOG_LEVEL`    | no       | `INFO`                         | Logback root level. Lowering to `DEBUG` enables HTTP request/response logging in `BuxferClient` and per-arg value logging in tools (the always-redacted set — password, token, statement — stays redacted at every level). |
+| `BUXFER_API_BASE_URL` | no       | `https://www.buxfer.com/api`   | Buxfer REST API base URL. Override to point the client at a staging environment or local WireMock stub. Read by `BuxferClientConfig`. |
+
+**Adding new environment variables:** every new env var must be added as a commented example to the root `.env.example` file, following the existing comment style. This keeps the file the single reference an operator needs when configuring a fresh deployment.
 
 For local development, set these in the root `.env` file and load it before running:
 

@@ -13,8 +13,6 @@ import com.buxfer.mcp.api.models.TransactionFilters
 import com.buxfer.mcp.api.models.TransactionsResult
 import com.buxfer.mcp.api.models.UploadStatementResult
 import io.ktor.client.*
-import io.ktor.client.engine.*
-import io.ktor.client.engine.cio.*
 import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.client.statement.*
@@ -35,14 +33,13 @@ internal val buxferJson = Json {
     encodeDefaults = true
 }
 
-class BuxferClient(engine: HttpClientEngine = CIO.create()) {
+class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()) {
 
     companion object {
-        private const val BASE_URL = "https://www.buxfer.com/api"
         private val log = LoggerFactory.getLogger(BuxferClient::class.java)
     }
 
-    private val httpClient = HttpClient(engine)
+    private val httpClient = HttpClient(config.engine)
 
     @Volatile internal var token: String? = null
 
@@ -83,7 +80,7 @@ class BuxferClient(engine: HttpClientEngine = CIO.create()) {
 
     suspend fun login(email: String, password: String): Unit = traced("POST", "/login") {
         // Redaction policy: never log email (PII) or password (credential).
-        val response = httpClient.post("$BASE_URL/login") {
+        val response = httpClient.post("${config.baseUrl}/login") {
             setBody(FormDataContent(Parameters.build {
                 append("email", email)
                 append("password", password)
@@ -96,7 +93,7 @@ class BuxferClient(engine: HttpClientEngine = CIO.create()) {
     }
 
     suspend fun getAccounts(): List<Account> = traced("GET", "/accounts") {
-        val response = httpClient.get("$BASE_URL/accounts") {
+        val response = httpClient.get("${config.baseUrl}/accounts") {
             parameter("token", requireToken())
         }
         val body = responseBody(text(response))
@@ -105,7 +102,7 @@ class BuxferClient(engine: HttpClientEngine = CIO.create()) {
 
     suspend fun getTransactions(filters: TransactionFilters = TransactionFilters()): TransactionsResult =
         traced("GET", "/transactions") {
-            val response = httpClient.get("$BASE_URL/transactions") {
+            val response = httpClient.get("${config.baseUrl}/transactions") {
                 parameter("token", requireToken())
                 filters.accountId?.let { parameter("accountId", it) }
                 filters.accountName?.let { parameter("accountName", it) }
@@ -131,7 +128,7 @@ class BuxferClient(engine: HttpClientEngine = CIO.create()) {
         }
 
     suspend fun addTransaction(params: AddTransactionParams): Transaction = traced("POST", "/transaction_add") {
-        val response = httpClient.post("$BASE_URL/transaction_add") {
+        val response = httpClient.post("${config.baseUrl}/transaction_add") {
             setBody(FormDataContent(Parameters.build {
                 append("token", requireToken())
                 append("description", params.description)
@@ -149,7 +146,7 @@ class BuxferClient(engine: HttpClientEngine = CIO.create()) {
 
     suspend fun editTransaction(id: Int, params: AddTransactionParams): Transaction =
         traced("POST", "/transaction_edit") {
-            val response = httpClient.post("$BASE_URL/transaction_edit") {
+            val response = httpClient.post("${config.baseUrl}/transaction_edit") {
                 setBody(FormDataContent(Parameters.build {
                     append("token", requireToken())
                     append("id", id.toString())
@@ -167,7 +164,7 @@ class BuxferClient(engine: HttpClientEngine = CIO.create()) {
         }
 
     suspend fun deleteTransaction(id: Int): Unit = traced("POST", "/transaction_delete") {
-        val response = httpClient.post("$BASE_URL/transaction_delete") {
+        val response = httpClient.post("${config.baseUrl}/transaction_delete") {
             setBody(FormDataContent(Parameters.build {
                 append("token", requireToken())
                 append("id", id.toString())
@@ -179,7 +176,7 @@ class BuxferClient(engine: HttpClientEngine = CIO.create()) {
     suspend fun uploadStatement(accountId: Int, statement: String, dateFormat: String? = null): UploadStatementResult =
         traced("POST", "/upload_statement") {
             // Redaction policy: never log the statement body — raw bank-statement text, often many KB.
-            val response = httpClient.post("$BASE_URL/upload_statement") {
+            val response = httpClient.post("${config.baseUrl}/upload_statement") {
                 setBody(FormDataContent(Parameters.build {
                     append("token", requireToken())
                     append("accountId", accountId.toString())
@@ -194,7 +191,7 @@ class BuxferClient(engine: HttpClientEngine = CIO.create()) {
         }
 
     suspend fun getTags(): List<Tag> = traced("GET", "/tags") {
-        val response = httpClient.get("$BASE_URL/tags") {
+        val response = httpClient.get("${config.baseUrl}/tags") {
             parameter("token", requireToken())
         }
         val body = responseBody(text(response))
@@ -202,7 +199,7 @@ class BuxferClient(engine: HttpClientEngine = CIO.create()) {
     }
 
     suspend fun getBudgets(): List<Budget> = traced("GET", "/budgets") {
-        val response = httpClient.get("$BASE_URL/budgets") {
+        val response = httpClient.get("${config.baseUrl}/budgets") {
             parameter("token", requireToken())
         }
         val body = responseBody(text(response))
@@ -210,7 +207,7 @@ class BuxferClient(engine: HttpClientEngine = CIO.create()) {
     }
 
     suspend fun getReminders(): List<Reminder> = traced("GET", "/reminders") {
-        val response = httpClient.get("$BASE_URL/reminders") {
+        val response = httpClient.get("${config.baseUrl}/reminders") {
             parameter("token", requireToken())
         }
         val body = responseBody(text(response))
@@ -218,7 +215,7 @@ class BuxferClient(engine: HttpClientEngine = CIO.create()) {
     }
 
     suspend fun getGroups(): List<Group> = traced("GET", "/groups") {
-        val response = httpClient.get("$BASE_URL/groups") {
+        val response = httpClient.get("${config.baseUrl}/groups") {
             parameter("token", requireToken())
         }
         val body = responseBody(text(response))
@@ -226,7 +223,7 @@ class BuxferClient(engine: HttpClientEngine = CIO.create()) {
     }
 
     suspend fun getContacts(): List<Contact> = traced("GET", "/contacts") {
-        val response = httpClient.get("$BASE_URL/contacts") {
+        val response = httpClient.get("${config.baseUrl}/contacts") {
             parameter("token", requireToken())
         }
         val body = responseBody(text(response))
@@ -234,7 +231,7 @@ class BuxferClient(engine: HttpClientEngine = CIO.create()) {
     }
 
     suspend fun getLoans(): List<Loan> = traced("GET", "/loans") {
-        val response = httpClient.get("$BASE_URL/loans") {
+        val response = httpClient.get("${config.baseUrl}/loans") {
             parameter("token", requireToken())
         }
         val body = responseBody(text(response))

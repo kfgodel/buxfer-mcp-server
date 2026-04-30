@@ -2,6 +2,7 @@ package com.buxfer.mcp.api
 
 import com.buxfer.mcp.TestFixtureLoader
 import com.buxfer.mcp.api.models.AddTransactionParams
+import com.buxfer.mcp.api.BuxferClientConfig
 import io.ktor.client.engine.mock.*
 import io.ktor.http.*
 import kotlinx.coroutines.test.runTest
@@ -39,7 +40,7 @@ class BuxferClientTest {
 
     @BeforeEach
     fun setUp() {
-        client = BuxferClient(mockEngine())
+        client = BuxferClient(BuxferClientConfig(engine = mockEngine()))
         client.token = "test-token"
     }
 
@@ -203,23 +204,40 @@ class BuxferClientTest {
 
     @Test
     fun `throws BuxferApiException on non-OK status`() = runTest {
-        val errorClient = BuxferClient(MockEngine { _ ->
+        val errorClient = BuxferClient(BuxferClientConfig(engine = MockEngine { _ ->
             respond(
                 """{"response":{"status":"error","error":"Invalid token"}}""",
                 HttpStatusCode.OK,
                 headersOf(HttpHeaders.ContentType, "application/json")
             )
-        })
+        }))
         errorClient.token = "bad-token"
         val ex = assertThrows<BuxferApiException> { errorClient.getAccounts() }
         assertThat(ex.message).isEqualTo("Invalid token")
     }
 
     @Test
+    fun `custom baseUrl is used for all requests`() = runTest {
+        val capturedHosts = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            capturedHosts += request.url.host
+            respond(
+                TestFixtureLoader.load("accounts"),
+                HttpStatusCode.OK,
+                headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+        val customClient = BuxferClient(BuxferClientConfig(engine = engine, baseUrl = "https://custom.example.test/api"))
+        customClient.token = "test-token"
+        customClient.getAccounts()
+        assertThat(capturedHosts).containsExactly("custom.example.test")
+    }
+
+    @Test
     fun `throws on HTTP error response`() = runTest {
-        val errorClient = BuxferClient(MockEngine { _ ->
+        val errorClient = BuxferClient(BuxferClientConfig(engine = MockEngine { _ ->
             respond("Server Error", HttpStatusCode.InternalServerError)
-        })
+        }))
         errorClient.token = "test-token"
         assertThrows<BuxferApiException> { errorClient.getAccounts() }
     }
