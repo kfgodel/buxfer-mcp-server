@@ -17,8 +17,11 @@ import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities
 import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
+import org.slf4j.LoggerFactory
 
 class BuxferMcpServer(client: BuxferClient) {
+
+    private val log = LoggerFactory.getLogger(BuxferMcpServer::class.java)
 
     private val transactionTools = TransactionTools(client)
     private val accountTools = AccountTools(client)
@@ -92,6 +95,8 @@ class BuxferMcpServer(client: BuxferClient) {
             name = "buxfer_list_loans",
             description = "List all Buxfer loans."
         ) { _ -> loanTools.listLoans() }
+
+        log.info("Registered 12 MCP tools")
     }
 
     suspend fun start() {

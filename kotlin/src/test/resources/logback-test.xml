@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Test-only logging config. Gradle picks this up because src/test/resources
+  takes precedence over src/main/resources on the test classpath.
+
+  Why this differs from production:
+    - The "stdout breaks the MCP protocol" rule applies only to the running
+      MCP server. The gradle test process is not an MCP transport, so
+      writing log output to stdout is harmless and useful.
+    - We avoid the rolling FileAppender so test runs do not litter the
+      filesystem with logs/ directories.
+
+  Override the level locally with: -DBUXFER_LOG_LEVEL=DEBUG
+-->
+<configuration>
+
+    <property name="LOG_LEVEL" value="${BUXFER_LOG_LEVEL:-INFO}"/>
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <!-- Same pattern as production so test output and on-disk logs render identically.
+                 Parentheses must be escaped (Logback treats them as a grouping construct). -->
+            <pattern>%d{ISO8601} %relative %-5level [%thread] %logger{36} - %msg at %class.%method\(%class.java:%line\)%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="${LOG_LEVEL}">
+        <appender-ref ref="STDOUT"/>
+    </root>
+
+</configuration>

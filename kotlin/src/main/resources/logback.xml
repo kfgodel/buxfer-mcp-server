@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Buxfer MCP server — production logging config.
+
+  ============================================================================
+  IMPORTANT: NO ConsoleAppender. Do not add one.
+  ============================================================================
+  This server uses MCP's stdio transport: JSON-RPC frames are written to
+  stdout and read from stdin. Any non-JSON output on stdout corrupts the
+  protocol and breaks the MCP client. All logging therefore goes to the
+  rolling file appender below; nothing goes to stdout. stderr is reserved
+  for fatal startup errors emitted directly from Main.kt (where Logback may
+  not yet be initialized) — see Main.kt for the convention.
+
+  ============================================================================
+  Redaction policy (matches BuxferClient.kt and *Tools.kt instrumentation):
+  ============================================================================
+  Never logged at any level:
+    - BUXFER_EMAIL (PII / account identifier)
+    - BUXFER_PASSWORD (credential)
+    - The auth token returned by /api/login (bearer credential)
+    - The 'statement' arg to buxfer_upload_statement (raw bank-statement text)
+
+  Argument-value logging is gated:
+    - INFO  (default): tool name + arg keys only
+    - DEBUG          : tool name + arg key=value pairs (still redacts the
+                       always-redacted set above)
+
+  ============================================================================
+  Configuration:
+  ============================================================================
+    BUXFER_LOG_DIR    where logs land (default: ./logs, relative to CWD)
+    BUXFER_LOG_LEVEL  root level (default: INFO)
+-->
+<configuration>
+
+    <!--
+      Suppress Logback's own internal StatusManager output. Without this,
+      Logback's StatusPrinter writes WARN/ERROR configuration diagnostics to
+      System.out — which corrupts MCP's JSON-RPC stdio frames. NopStatusListener
+      discards all internal status events before they reach any stream.
+
+      Tradeoff: if logback.xml is mis-configured, the server will silently fail
+      to produce log files rather than printing an error. Verify with:
+        ls -la logs/server.log    # must exist after startup
+    -->
+    <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
+
+    <property name="LOG_DIR" value="${BUXFER_LOG_DIR:-./logs}"/>
+    <property name="LOG_LEVEL" value="${BUXFER_LOG_LEVEL:-INFO}"/>
+
+    <!--
+      Pattern (per Phase 2 plan):
+        ISO-8601 wall clock | millis-since-JVM-start | LEVEL [thread] logger - message (class.method:line)
+      The trailing (class.method:line) is formatted like a stack-frame reference
+      so it is clickable in IDEs / readable in stack-trace contexts.
+      Note: %class %method %line are computed from a synthesized stack trace,
+      which is moderately expensive. This server logs at most a few times per
+      MCP request, so the cost is negligible. Reconsider if log volume grows.
+    -->
+    <!--
+      Parentheses are an active Logback PatternLayout grouping construct; they MUST
+      be escaped as \( and \) to render as literal characters. Without the escape,
+      Logback merges the trailing %n with the group expression and the file ends up
+      with no newlines between log statements (one giant line). See
+      https://logback.qos.ch/manual/layouts.html#groupingByParentheses.
+    -->
+    <property name="LOG_PATTERN"
+              value="%d{ISO8601} %relative %-5level [%thread] %logger{36} - %msg at %class.%method\(%class.java:%line\)%n"/>
+
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/server.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/server-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>14</maxHistory>
+            <totalSizeCap>100MB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <root level="${LOG_LEVEL}">
+        <appender-ref ref="FILE"/>
+    </root>
+
+</configuration>

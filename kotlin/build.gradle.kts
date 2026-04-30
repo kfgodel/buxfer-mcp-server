@@ -37,8 +37,10 @@ dependencies {
     // JSON serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$serializationVersion")
 
-    // Suppress SLF4J output to stdout (would break stdio MCP transport)
-    implementation("org.slf4j:slf4j-nop:2.0.17")
+    // Logging — Logback classic. Writes to a rolling file via src/main/resources/logback.xml.
+    // No ConsoleAppender in production: stdout is the MCP stdio transport and any output corrupts JSON-RPC frames.
+    // Pulls in slf4j-api 2.0.x transitively; do not pin slf4j-api separately.
+    implementation("ch.qos.logback:logback-classic:1.5.18")
 
     // Test
     testImplementation("org.junit.jupiter:junit-jupiter:$junitVersion")

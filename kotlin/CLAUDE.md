@@ -142,16 +142,18 @@ See `build.gradle.kts` for pinned versions.
 | `io.ktor:ktor-client-content-negotiation`          | JSON content negotiation                                                   |
 | `io.ktor:ktor-serialization-kotlinx-json`          | JSON serialization via Ktor                                                |
 | `org.jetbrains.kotlinx:kotlinx-serialization-json` | Data class serialization                                                   |
-| `org.slf4j:slf4j-nop`                              | Suppress SLF4J warnings on stdio (important: logging to stdout breaks MCP) |
+| `ch.qos.logback:logback-classic`                   | SLF4J binding; rolling-file logging — see `src/main/resources/logback.xml`. Never logs to stdout (the MCP transport); writes to `./logs/server.log` by default. Pulls in `slf4j-api` transitively. |
 
 ## Configuration
 
-The server reads credentials from environment variables:
+The server reads credentials and operational settings from environment variables:
 
-| Variable          | Description             |
-|-------------------|-------------------------|
-| `BUXFER_EMAIL`    | Buxfer account email    |
-| `BUXFER_PASSWORD` | Buxfer account password |
+| Variable           | Required | Default   | Description                                                                                                                                                                            |
+|--------------------|----------|-----------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `BUXFER_EMAIL`     | yes      | —         | Buxfer account email. **Never logged** (PII / account identifier).                                                                                                                     |
+| `BUXFER_PASSWORD`  | yes      | —         | Buxfer account password. **Never logged**.                                                                                                                                             |
+| `BUXFER_LOG_DIR`   | no       | `./logs`  | Directory the rolling log appender writes to (relative to the server's working directory). Resolved by `logback.xml`.                                                                  |
+| `BUXFER_LOG_LEVEL` | no       | `INFO`    | Logback root level. Lowering to `DEBUG` enables HTTP request/response logging in `BuxferClient` and per-arg value logging in tools (the always-redacted set — password, token, statement — stays redacted at every level). |
 
 For local development, set these in the root `.env` file and load it before running:
 
@@ -163,7 +165,7 @@ gradle run
 
 On startup, `BuxferClient` calls `POST /api/login` and stores the returned token in memory. All subsequent tool calls inject this token.
 
-**Do not log to stdout** — MCP communicates over stdio, and any stray output breaks the protocol. All logging must go to stderr or be suppressed.
+**Do not log to stdout** — MCP communicates over stdio, and any stray stdout output breaks the protocol. The default `logback.xml` enforces this by configuring only a rolling file appender (no `ConsoleAppender`). `Main.kt` writes fatal startup errors to `stderr` (which is not part of the MCP transport) so the operator who launched the process sees them; the same messages also reach the log file via `log.error(...)`. Do not add any further `System.out.println` / `print` / `println` calls anywhere in production code.
 
 ## Building & Running
 
