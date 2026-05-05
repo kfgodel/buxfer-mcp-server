@@ -34,7 +34,7 @@ class BuxferMcpServer(client: BuxferClient) {
 
     private val server = Server(
         serverInfo = Implementation(name = "buxfer", version = "1.0.0"),
-        options = ServerOptions(capabilities = ServerCapabilities())
+        options = ServerOptions(capabilities = ServerCapabilities(tools = ServerCapabilities.Tools()))
     ).apply {
         addTool(
             name = "buxfer_list_accounts",
@@ -98,6 +98,9 @@ class BuxferMcpServer(client: BuxferClient) {
 
         log.info("Registered 12 MCP tools")
     }
+
+    val toolDescriptors: Map<String, String?>
+        get() = server.tools.mapValues { (_, registered) -> registered.tool.description }
 
     suspend fun start() {
         val transport = StdioServerTransport(

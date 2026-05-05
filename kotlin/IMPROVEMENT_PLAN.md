@@ -1,0 +1,249 @@
+# Kotlin Module — Multi-Session Improvement Plan
+
+A staged plan to harden the Kotlin implementation. Each phase is self-contained
+and can run in its own session. Mark a phase complete by checking it off here.
+
+---
+
+## Phase 1 — AssertJ migration
+
+**Goal:** Replace JUnit `assertEquals` with AssertJ for fluent, readable
+assertions, including JSON tree assertions.
+
+### Confirmed decisions
+
+- **JSON-assertion library:** `net.javacrumbs.json-unit:json-unit-assertj`
+  — replaces the current `kotlinx.serialization` tree walks. Picked
+  specifically for the better failure messages it produces (full path to
+  the diff, expected-vs-actual JSON pretty-printed) versus hand-walked
+  trees that fail with "expected 42 but was 13" with no context.
+
+### Steps
+
+1. Add to `kotlin/build.gradle.kts` test dependencies:
+   - `org.assertj:assertj-core:3.27.x`
+   - `net.javacrumbs.json-unit:json-unit-assertj:3.x`
+2. Migrate test files in this order (smallest first — keeps each commit tight):
+   - [src/test/kotlin/com/buxfer/mcp/tools/AccountToolsTest.kt](src/test/kotlin/com/buxfer/mcp/tools/AccountToolsTest.kt) (62 lines)
+   - [src/test/kotlin/com/buxfer/mcp/tools/LookupToolsTest.kt](src/test/kotlin/com/buxfer/mcp/tools/LookupToolsTest.kt) (139 lines)
+   - [src/test/kotlin/com/buxfer/mcp/tools/TransactionToolsTest.kt](src/test/kotlin/com/buxfer/mcp/tools/TransactionToolsTest.kt) (160 lines)
+   - [src/test/kotlin/com/buxfer/mcp/api/BuxferClientTest.kt](src/test/kotlin/com/buxfer/mcp/api/BuxferClientTest.kt) (173 lines)
+3. Replace patterns:
+   - `assertEquals(a, b)` → `assertThat(b).isEqualTo(a)`
+   - `assertTrue(x)` → `assertThat(x).isTrue()`
+   - JSON walks like `parsed[0].jsonObject["id"]!!.jsonPrimitive.int == 42` →
+     `assertThatJson(text).inPath("$[0].id").isEqualTo(42)`
+4. Run `gradle test` after each file; ensure all green before moving on.
+
+### Verification
+
+- All existing tests still pass (no behavior change).
+- No remaining import of `org.junit.jupiter.api.Assertions.*`.
+
+---
+
+## Phase 2 — Logging via SLF4J + Logback rolling file
+
+**Goal:** Replace `slf4j-nop` with real logging that writes to a rolling file.
+Stdout MUST remain silent (it is the MCP transport).
+
+### Confirmed decisions
+
+- **Log file location:** `./logs/server.log` — relative to the server's
+  working directory. The server **never** writes outside its own working
+  directory (portability constraint: the deployment must be self-contained
+  and require no access to `${HOME}` or any other path). Operators who need
+  a different path can set `BUXFER_LOG_DIR` (must still be a path the
+  process can write to without elevated permissions).
+- **Rolling policy:** size+time-based — 10 MB per file, 14-day retention,
+  total cap 100 MB.
+- **Default level:** `INFO`, with `BUXFER_LOG_LEVEL` env override.
+
+### Steps
+
+1. Update `kotlin/build.gradle.kts`:
+   - Remove `org.slf4j:slf4j-nop`
+   - Add `ch.qos.logback:logback-classic:1.5.x`
+2. Create `kotlin/src/main/resources/logback.xml`:
+   - Single `RollingFileAppender` writing to the path above
+   - **No `ConsoleAppender`** — explicit comment explaining MCP stdio constraint
+   - Resolve log dir at runtime via `${BUXFER_LOG_DIR:-./logs}`
+3. Add `private val log = LoggerFactory.getLogger(this::class.java)` to:
+   - [src/main/kotlin/com/buxfer/mcp/Main.kt](src/main/kotlin/com/buxfer/mcp/Main.kt)
+   - [src/main/kotlin/com/buxfer/mcp/BuxferMcpServer.kt](src/main/kotlin/com/buxfer/mcp/BuxferMcpServer.kt)
+   - [src/main/kotlin/com/buxfer/mcp/api/BuxferClient.kt](src/main/kotlin/com/buxfer/mcp/api/BuxferClient.kt)
+   - All three `tools/*Tools.kt` files
+4. Instrument:
+   - `Main`: log startup banner, configured log dir, login result. Keep
+     existing `System.err.println` for fatal startup errors so the operator
+     who launched the process sees them.
+   - `BuxferClient`: DEBUG for each HTTP request (method + path, NEVER token
+     or credentials), DEBUG for response status, ERROR for thrown
+     `BuxferApiException`.
+   - `BuxferMcpServer` / tools: INFO for each tool invocation with arg
+     summary (redacted), ERROR for caught exceptions.
+
+### Verification
+
+- `gradle run` produces no stdout output, but a `./logs/server.log` file
+  appears under the directory `gradle run` was launched from (and nowhere
+  else on the filesystem — confirm by running from a fresh tmp dir).
+- Send an MCP `tools/list` request via stdio and confirm the response is
+  clean JSON-RPC (no log lines mixed in).
+- Force a login failure; the error appears in the log file AND on stderr.
+- Rolling: smoke-test with a tiny `maxFileSize` to confirm rollover works.
+
+---
+
+## Phase 3 — Configurable Buxfer API base URL
+
+**Goal:** Make the Buxfer API endpoint injectable on `BuxferClient` so tests
+(Phase 4) and advanced operators can point the client at a different host
+(e.g. WireMock, a staging environment). This phase is a **prerequisite for
+Phase 4**.
+
+### Steps
+
+1. Update [src/main/kotlin/com/buxfer/mcp/api/BuxferClient.kt](src/main/kotlin/com/buxfer/mcp/api/BuxferClient.kt):
+   - Replace `companion object { private const val BASE_URL = "..." }` with
+     a `companion object { const val DEFAULT_BASE_URL = "..." }` plus a
+     constructor parameter `baseUrl: String = DEFAULT_BASE_URL`
+   - Use `baseUrl` (not `BASE_URL`) in every request builder
+2. Update [src/main/kotlin/com/buxfer/mcp/Main.kt](src/main/kotlin/com/buxfer/mcp/Main.kt):
+   - Read `BUXFER_API_BASE_URL` env var; fall back to default if unset
+   - Pass it to the `BuxferClient(...)` constructor
+3. Update existing tests:
+   - [src/test/kotlin/com/buxfer/mcp/api/BuxferClientTest.kt](src/test/kotlin/com/buxfer/mcp/api/BuxferClientTest.kt) — no
+     behavior change (default keeps current URL); just confirm tests still
+     green
+   - Add one new test: passing a custom `baseUrl` makes requests hit that
+     host (verify with `MockEngine` request inspection)
+
+### Verification
+
+- `gradle test` green
+- `BUXFER_API_BASE_URL=https://example.test gradle run` actually calls
+  `example.test` (verify with a quick netcat or by watching the failure
+  message)
+
+---
+
+## Phase 4 — Tests for missing pieces (server + integration)
+
+**Goal:** Cover the currently untested integration points and add an
+end-to-end test that exercises the full MCP server against a fake Buxfer API.
+
+### Sub-phase 4a — Unit tests for server bootstrap
+
+Test target: [src/main/kotlin/com/buxfer/mcp/BuxferMcpServer.kt](src/main/kotlin/com/buxfer/mcp/BuxferMcpServer.kt)
+
+Add `BuxferMcpServerTest`:
+- Verify all 12 tools are registered with the expected names.
+- Verify each tool description is non-empty.
+- May require exposing the registered-tool list via a test-only accessor or
+  using the SDK's `ListToolsRequest` if available.
+
+### Sub-phase 4b — Integration test with WireMock + in-memory transport
+
+**Setup prerequisites — document explicitly in `kotlin/CLAUDE.md`:**
+- The integration test runs WireMock embedded in the JVM (no Docker
+  required for `gradle test`). The Docker `compose.yml` in
+  `api-recordings/` is only for fixture capture, NOT for running tests.
+- The test loads stub mappings from `../shared/test-fixtures/wiremock/mappings/`.
+  These files are produced by the `api-recordings/` capture workflow. If
+  the directory is empty or missing, the integration test will skip (or
+  fail with a clear "run capture first" message — pick one in 4b
+  implementation).
+- Operators reproducing failures locally need to either commit the
+  anonymized fixture files OR run `./run-capture.sh` from `api-recordings/`
+  with valid Buxfer credentials. Document both paths.
+
+**Tooling:**
+- Add test dependency `org.wiremock:wiremock:3.x` (embedded JVM library,
+  NOT the Docker container — runs in the test process).
+- Reuse the existing WireMock mappings at `../shared/test-fixtures/wiremock/mappings/`
+  (already produced by the `api-recordings/` module).
+- Configure WireMock to bind to a random free port; pass that URL to
+  `BuxferClient` via the new `baseUrl` constructor parameter from Phase 3.
+
+**Transport:**
+- Use kotlin-sdk's `InMemoryTransport.createPair()` if exposed publicly; if
+  not, copy the SDK's test-source `MockTransport` into `src/test/kotlin/`.
+  Decision point — confirm what's available before starting.
+
+**Test scenarios** (one per fixture endpoint plus a handful of compositions):
+- Server initializes, lists 12 tools.
+- `buxfer_list_accounts` round-trip returns the WireMock-served accounts JSON.
+- `buxfer_list_transactions` with filters builds the right query string and
+  parses results.
+- `buxfer_add_transaction` posts form data and returns the created txn.
+- One error-path scenario: WireMock returns `{ "response": { "status":
+  "error", "error": "..." } }` and the tool surfaces `isError = true`.
+
+This is a "showcase" test — comments should walk through the round-trip so a
+reader sees the whole pipeline working end-to-end.
+
+### Verification
+
+- `gradle test` runs unit + integration tests in one go (single test task).
+- Coverage report (optional, via JaCoCo) shows `BuxferMcpServer` + `Main`
+  exercised.
+
+---
+
+## Phase 5 — Bottom-up code review walkthrough
+
+**Format:** interactive review session(s) with the user. The plan here is
+just the order of files and the lens to apply at each step.
+
+### Review order (bottom-up by dependency direction)
+
+1. **Models** — [src/main/kotlin/com/buxfer/mcp/api/models/](src/main/kotlin/com/buxfer/mcp/api/models/)
+   `Account.kt`, `Transaction.kt`, `Tag.kt`, `Budget.kt`, `Reminder.kt`,
+   `Group.kt`, `Contact.kt`, `Loan.kt`
+2. **API client** — [src/main/kotlin/com/buxfer/mcp/api/BuxferClient.kt](src/main/kotlin/com/buxfer/mcp/api/BuxferClient.kt),
+   [src/main/kotlin/com/buxfer/mcp/api/BuxferApiException.kt](src/main/kotlin/com/buxfer/mcp/api/BuxferApiException.kt)
+3. **Tools** — [src/main/kotlin/com/buxfer/mcp/tools/](src/main/kotlin/com/buxfer/mcp/tools/)
+   `LookupTools.kt`, `AccountTools.kt`, `TransactionTools.kt`
+4. **Server** — [src/main/kotlin/com/buxfer/mcp/BuxferMcpServer.kt](src/main/kotlin/com/buxfer/mcp/BuxferMcpServer.kt)
+5. **Entry point** — [src/main/kotlin/com/buxfer/mcp/Main.kt](src/main/kotlin/com/buxfer/mcp/Main.kt)
+6. **Tests** — corresponding test file alongside each main file
+
+### Lens for each file
+
+- Naming & idioms — does it read like idiomatic Kotlin?
+- Error handling — every failure mode has a clear path; no silent catches.
+- Nullability — `?` and `!!` justified; defaults sensible.
+- Coroutines — suspending where it should; no blocking on the IO thread.
+- Test coverage — every branch hit by a test in the matching `*Test.kt`.
+
+### Output
+
+Each pass produces either: (a) a short list of accepted changes, applied
+immediately, or (b) follow-up items captured at the bottom of this doc.
+
+---
+
+## Cross-phase notes
+
+- Run `gradle test` and `gradle compileKotlin` from `kotlin/` with
+  `PATH="$HOME/.asdf/shims:$PATH"` (per repo convention).
+- Each phase ends with all tests green and a single focused commit (or
+  sequence of small commits — user preference).
+- If a session runs out of context, leave a "Resuming Phase N" note here
+  with the file currently in flight.
+
+---
+
+## Resuming Phase 4 (2026-05-04)
+
+**Done:** Phases 1, 2, 3, 4a — AssertJ migration, Logback rolling-file logging, configurable base URL via `BuxferClientConfig`, server-bootstrap unit tests. All 39 tests green.
+
+Phase 4a notes:
+- Added the `idea` plugin + `isDownloadSources = true` to [build.gradle.kts](build.gradle.kts) so source jars are reliably resolved and the LSP indexes them — `hover` and `goToDefinition` now reach the SDK source directly.
+- Captured the two non-obvious SDK gotchas (the `ServerCapabilities()` `tools = null` trap and the absence of `InMemoryTransport`) in [CLAUDE.md](CLAUDE.md) §"SDK gotchas".
+- Bootstrap exposure: kept `private val server` and added a public read-only `toolDescriptors: Map<String, String?>` introspection property on `BuxferMcpServer` (no `internal` backdoor; tests use the same surface any consumer would).
+- New test file [src/test/kotlin/com/buxfer/mcp/BuxferMcpServerTest.kt](src/test/kotlin/com/buxfer/mcp/BuxferMcpServerTest.kt) with two cases: registered set is exactly the expected 12 tool names; every description is non-blank.
+- **Bug found and fixed.** Original bootstrap passed `ServerCapabilities()` with `tools = null`; `Server.addTool` requires `tools` capability to be non-null and threw `IllegalStateException` at construction time. Fixed by passing `ServerCapabilities(tools = ServerCapabilities.Tools())`. The bootstrap had been broken on every startup — the new test uncovered it on first construction.
+
+**Next:** Phase 4b — WireMock + custom in-memory transport, separate session. The SDK doesn't ship one (see CLAUDE.md gotcha); roll your own by extending `AbstractTransport` and dispatching inbound messages via `_onMessage`.

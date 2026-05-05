@@ -4,7 +4,15 @@ plugins {
     kotlin("jvm") version "2.2.0"
     kotlin("plugin.serialization") version "2.2.0"
     application
+    idea
     id("com.gradleup.shadow") version "9.4.1"
+}
+
+idea {
+    module {
+        isDownloadSources = true
+        isDownloadJavadoc = false
+    }
 }
 
 group = "com.buxfer"

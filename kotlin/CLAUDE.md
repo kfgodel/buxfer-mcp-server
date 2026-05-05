@@ -85,7 +85,24 @@ Or simply ask Claude Code.
 - `hover` — inspect type signatures and documentation in place
 - `findReferences` / `documentSymbol` — explore usages or the structure of a file
 
-**When LSP cannot resolve a symbol** (usually because the project has not compiled yet and external dependencies are not indexed), **ask the user** rather than resorting to jar inspection, `find`, `grep` on `.class` files, or other workarounds. The user can quickly look up the correct import from IDE tooling or documentation.
+**When LSP cannot resolve a symbol** (usually because the project has not compiled yet and external dependencies are not indexed), **ask the user** rather than resorting to `find`, `grep` on `.class` files, or other workarounds. The user can quickly look up the correct import from IDE tooling or documentation.
+
+### SDK API discovery
+
+`build.gradle.kts` applies the `idea` plugin with `isDownloadSources = true`, so Gradle resolves the `*-sources.jar` for every SDK dependency and the LSP indexes them. **Use `hover` and `goToDefinition` first.** They reach the actual SDK source — no jar extraction needed.
+
+If LSP can't resolve a symbol (usually because the project hasn't compiled yet), the source jars live in the Gradle cache, e.g.:
+
+```
+~/.gradle/caches/modules-2/files-2.1/io.modelcontextprotocol/kotlin-sdk-server-jvm/<version>/<hash>/kotlin-sdk-server-jvm-<version>-sources.jar
+```
+
+Extract to a scratch dir and `Read` files normally. This should be rare.
+
+### SDK gotchas (things `hover` won't tell you)
+
+- **`ServerCapabilities()` no-args defaults `tools = null`**, which makes `Server.addTool(...)` throw `IllegalStateException: Server does not support tools capability`. Pass `ServerCapabilities(tools = ServerCapabilities.Tools())` to actually enable tool registration.
+- **No `InMemoryTransport` ships with the SDK** (verified in 0.11.1). A test that wants in-process server↔client wiring has to roll its own by extending `AbstractTransport` (override `start`/`send`/`close`; dispatch inbound messages by invoking `_onMessage`).
 
 ## Running Gradle
 
