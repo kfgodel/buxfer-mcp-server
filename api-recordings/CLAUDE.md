@@ -4,7 +4,7 @@ The authoritative source of real Buxfer API behaviour in this repository.
 
 This module has two responsibilities:
 
-1. **Capture** — use Hurl to make authenticated requests to the live Buxfer API, anonymize the responses with `jq`, and write the results to `../shared/test-fixtures/responses/`.
+1. **Capture** — use Hurl to make authenticated requests to the live Buxfer API, anonymize the responses with `jq`, and write the results to `../shared/test-fixtures/wiremock/__files/`.
 2. **Mock server** — provide a WireMock configuration that serves those recorded responses over HTTP, so all three language implementations can run integration tests against a realistic Buxfer API without real credentials.
 
 No application code lives here. This module is language-agnostic and has no dependency on the Kotlin, TypeScript, or Python implementations.
@@ -43,12 +43,12 @@ This will:
 2. Call every GET endpoint.
 3. Create a test transaction, then edit and delete it (to capture write-endpoint responses).
 4. Anonymize each response using the `jq` transforms in `anonymize/`.
-5. Write results to `../shared/test-fixtures/responses/`.
+5. Write results to `../shared/test-fixtures/wiremock/__files/`.
 
 After running, review the diff carefully before committing:
 
 ```bash
-git diff ../shared/test-fixtures/responses/
+git diff ../shared/test-fixtures/wiremock/__files/
 ```
 
 The `upload_statement` endpoint requires a real statement file and must be captured manually — see `requests/upload_statement.hurl` for instructions.

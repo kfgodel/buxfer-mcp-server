@@ -46,7 +46,7 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
 
     private val httpClient = HttpClient(config.engine)
 
-    @Volatile internal var token: String? = null
+    @Volatile private var token: String? = null
 
     private fun requireToken() = token ?: throw BuxferApiException("Not logged in — call login() first")
 

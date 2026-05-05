@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "POST",
-    "urlPathEqualTo": "/api/transaction_edit"
+    "urlPath": "/api/transaction_edit"
   },
   "response": {
     "status": 200,

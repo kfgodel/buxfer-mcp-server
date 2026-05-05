@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "GET",
-    "urlPathEqualTo": "/api/transactions"
+    "urlPath": "/api/transactions"
   },
   "response": {
     "status": 200,

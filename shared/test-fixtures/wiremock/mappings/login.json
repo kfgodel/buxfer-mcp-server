@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "POST",
-    "urlPathEqualTo": "/api/login"
+    "urlPath": "/api/login"
   },
   "response": {
     "status": 200,

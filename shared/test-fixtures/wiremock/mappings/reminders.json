@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "GET",
-    "urlPathEqualTo": "/api/reminders"
+    "urlPath": "/api/reminders"
   },
   "response": {
     "status": 200,

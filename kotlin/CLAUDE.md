@@ -241,7 +241,7 @@ gradle test
 
 ```
 src/test/kotlin/com/buxfer/mcp/
-├── TestFixtureLoader.kt          # Loads JSON from shared/test-fixtures/responses/
+├── TestFixtureLoader.kt          # Loads JSON from shared/test-fixtures/wiremock/__files/
 ├── api/
 │   └── BuxferClientTest.kt       # HTTP-level: MockEngine + fixture JSON
 └── tools/
@@ -252,7 +252,7 @@ src/test/kotlin/com/buxfer/mcp/
 
 ### Shared fixtures
 
-All tests load response JSON from `../shared/test-fixtures/responses/` (path injected via the `fixtures.dir` system property in `build.gradle.kts`). The same fixture files are used by the TypeScript and Python implementations, so every language tests against an identical response contract. Fixture files are captured and anonymized by the language-agnostic `api-recordings/` module at the repo root — see `../shared/test-fixtures/CLAUDE.md` for the capture workflow.
+All tests load response JSON from `../shared/test-fixtures/wiremock/__files/` (path injected via the `fixtures.dir` system property in `build.gradle.kts`). The same fixture files are used by the TypeScript and Python implementations, so every language tests against an identical response contract. Fixture files are captured and anonymized by the language-agnostic `api-recordings/` module at the repo root — see `../shared/test-fixtures/CLAUDE.md` for the capture workflow.
 
 ### Testing expectations
 

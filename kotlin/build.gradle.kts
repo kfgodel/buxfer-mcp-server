@@ -31,6 +31,7 @@ val coroutinesTestVersion = "1.10.2"
 val assertjVersion = "3.27.7"
 val jsonUnitVersion = "4.1.0"
 val jacksonVersion = "2.19.0"
+val wiremockVersion = "3.10.0"   // matches the Docker tag in api-recordings/compose.yml
 
 dependencies {
     // MCP server protocol
@@ -58,6 +59,8 @@ dependencies {
     testImplementation("org.assertj:assertj-core:$assertjVersion")
     testImplementation("net.javacrumbs.json-unit:json-unit-assertj:$jsonUnitVersion")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
+    testImplementation("org.wiremock:wiremock:$wiremockVersion")
+    testImplementation("io.modelcontextprotocol:kotlin-sdk-testing:$mcpSdkVersion")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
@@ -80,6 +83,11 @@ tasks.named("build") {
 
 tasks.test {
     useJUnitPlatform()
-    // Shared anonymized fixtures used by all language implementations
-    systemProperty("fixtures.dir", "${project.projectDir}/../shared/test-fixtures/responses")
+    // Shared WireMock root: canonical layout with mappings/ and __files/ subdirs.
+    // Used by all language implementations and mounted as-is by the Docker WireMock
+    // in api-recordings/compose.yml.
+    val wireMockRoot = "${project.projectDir}/../shared/test-fixtures/wiremock"
+    systemProperty("wiremock.root.dir", wireMockRoot)
+    // TestFixtureLoader reads response bodies from the WireMock __files dir.
+    systemProperty("fixtures.dir", "$wireMockRoot/__files")
 }

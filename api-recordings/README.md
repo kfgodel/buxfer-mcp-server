@@ -25,10 +25,10 @@ Credentials are loaded automatically from the root `.env` file.
 ./run-capture.sh
 ```
 
-This logs in to Buxfer, calls every endpoint, anonymizes each response, and writes the results to `../shared/test-fixtures/responses/`. Review the diff before committing:
+This logs in to Buxfer, calls every endpoint, anonymizes each response, and writes the results to `../shared/test-fixtures/wiremock/__files/`. Review the diff before committing:
 
 ```bash
-git diff ../shared/test-fixtures/responses/
+git diff ../shared/test-fixtures/wiremock/__files/
 ```
 
 > `upload_statement` must be captured manually — see `requests/upload_statement.hurl` for instructions.

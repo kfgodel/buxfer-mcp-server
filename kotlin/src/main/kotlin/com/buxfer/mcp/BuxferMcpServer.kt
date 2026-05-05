@@ -12,6 +12,7 @@ import com.buxfer.mcp.tools.TransactionTools
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
 import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
+import io.modelcontextprotocol.kotlin.sdk.shared.Transport
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities
 import kotlinx.io.asSink
@@ -102,11 +103,14 @@ class BuxferMcpServer(client: BuxferClient) {
     val toolDescriptors: Map<String, String?>
         get() = server.tools.mapValues { (_, registered) -> registered.tool.description }
 
-    suspend fun start() {
-        val transport = StdioServerTransport(
+    suspend fun start() = start(
+        StdioServerTransport(
             inputStream = System.`in`.asSource().buffered(),
             outputStream = System.out.asSink().buffered()
         )
+    )
+
+    suspend fun start(transport: Transport) {
         server.createSession(transport)
     }
 }

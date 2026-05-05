@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "GET",
-    "urlPathEqualTo": "/api/groups"
+    "urlPath": "/api/groups"
   },
   "response": {
     "status": 200,

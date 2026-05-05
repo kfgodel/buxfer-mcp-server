@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "GET",
-    "urlPathEqualTo": "/api/tags"
+    "urlPath": "/api/tags"
   },
   "response": {
     "status": 200,

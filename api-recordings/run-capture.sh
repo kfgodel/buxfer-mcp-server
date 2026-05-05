@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Capture real Buxfer API responses, anonymize them, and write to
-# ../shared/test-fixtures/responses/.
+# ../shared/test-fixtures/wiremock/__files/.
 #
 # Usage:
 #   ./run-capture.sh
@@ -27,7 +27,7 @@ fi
 : "${BUXFER_EMAIL:?BUXFER_EMAIL not set — copy .env.example to .env and fill in your credentials}"
 : "${BUXFER_PASSWORD:?BUXFER_PASSWORD not set — copy .env.example to .env and fill in your credentials}"
 
-FIXTURES_DIR="$SCRIPT_DIR/../shared/test-fixtures/responses"
+FIXTURES_DIR="$SCRIPT_DIR/../shared/test-fixtures/wiremock/__files"
 REQUESTS_DIR="$SCRIPT_DIR/requests"
 ANONYMIZE_DIR="$SCRIPT_DIR/anonymize"
 
@@ -135,6 +135,6 @@ echo "   See requests/upload_statement.hurl for manual capture instructions."
 # ---------------------------------------------------------------------------
 echo ""
 echo "✓ Capture complete. Review the diff before committing:"
-echo "  git diff ../shared/test-fixtures/responses/"
+echo "  git diff ../shared/test-fixtures/wiremock/__files/"
 echo ""
 echo "  Ensure no real names, emails, account details, or bank names appear."

@@ -8,6 +8,7 @@ import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.data.Index.atIndex
@@ -42,15 +43,27 @@ class BuxferClientTest {
     }
 
     @BeforeEach
-    fun setUp() {
+    fun setUp() = runBlocking {
         client = BuxferClient(BuxferClientConfig(engine = mockEngine()))
-        client.token = "test-token"
+        client.login("user@example.com", "password")
     }
 
     @Test
-    fun `login stores token on success`() = runTest {
-        client.login("user@example.com", "password")
-        assertThat(client.token).isEqualTo("test-mock-token")
+    fun `login stores token from response and attaches it to subsequent requests`() = runTest {
+        val capturedTokens = mutableListOf<String?>()
+        val engine = MockEngine { request ->
+            capturedTokens += request.url.parameters["token"]
+            val body = if (request.url.encodedPath.endsWith("/login")) TestFixtureLoader.load("login")
+                       else TestFixtureLoader.load("accounts")
+            respond(body, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+        }
+        val freshClient = BuxferClient(BuxferClientConfig(engine = engine))
+
+        freshClient.login("user@example.com", "password")
+        freshClient.getAccounts()
+
+        // First request is /login (no token); second is /accounts carrying the token from the login response.
+        assertThat(capturedTokens).containsExactly(null, "test-mock-token")
     }
 
     @Test
@@ -207,14 +220,10 @@ class BuxferClientTest {
 
     @Test
     fun `throws BuxferApiException on non-OK status`() = runTest {
-        val errorClient = BuxferClient(BuxferClientConfig(engine = MockEngine { _ ->
-            respond(
-                """{"response":{"status":"error","error":"Invalid token"}}""",
-                HttpStatusCode.OK,
-                headersOf(HttpHeaders.ContentType, "application/json")
-            )
-        }))
-        errorClient.token = "bad-token"
+        val errorClient = BuxferClient(BuxferClientConfig(engine = mockEngine(overrides = mapOf(
+            "/accounts" to """{"response":{"status":"error","error":"Invalid token"}}"""
+        ))))
+        errorClient.login("user@example.com", "password")
         val ex = assertThrows<BuxferApiException> { errorClient.getAccounts() }
         assertThat(ex.message).isEqualTo("Invalid token")
     }
@@ -224,24 +233,26 @@ class BuxferClientTest {
         val capturedHosts = mutableListOf<String>()
         val engine = MockEngine { request ->
             capturedHosts += request.url.host
-            respond(
-                TestFixtureLoader.load("accounts"),
-                HttpStatusCode.OK,
-                headersOf(HttpHeaders.ContentType, "application/json")
-            )
+            val body = if (request.url.encodedPath.endsWith("/login")) TestFixtureLoader.load("login")
+                       else TestFixtureLoader.load("accounts")
+            respond(body, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
         }
         val customClient = BuxferClient(BuxferClientConfig(engine = engine, baseUrl = "https://custom.example.test/api"))
-        customClient.token = "test-token"
+        customClient.login("user@example.com", "password")
         customClient.getAccounts()
-        assertThat(capturedHosts).containsExactly("custom.example.test")
+        assertThat(capturedHosts).containsOnly("custom.example.test")
     }
 
     @Test
     fun `throws on HTTP error response`() = runTest {
-        val errorClient = BuxferClient(BuxferClientConfig(engine = MockEngine { _ ->
-            respond("Server Error", HttpStatusCode.InternalServerError)
-        }))
-        errorClient.token = "test-token"
+        val engine = MockEngine { request ->
+            if (request.url.encodedPath.endsWith("/login"))
+                respond(TestFixtureLoader.load("login"), HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+            else
+                respond("Server Error", HttpStatusCode.InternalServerError)
+        }
+        val errorClient = BuxferClient(BuxferClientConfig(engine = engine))
+        errorClient.login("user@example.com", "password")
         assertThrows<BuxferApiException> { errorClient.getAccounts() }
     }
 }

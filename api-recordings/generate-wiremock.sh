@@ -18,7 +18,7 @@ cat > "$MAPPINGS_DIR/login.json" << 'EOF'
 {
   "request": {
     "method": "POST",
-    "urlPathEqualTo": "/api/login"
+    "urlPath": "/api/login"
   },
   "response": {
     "status": 200,
@@ -37,7 +37,7 @@ for name in accounts transactions tags budgets reminders groups contacts loans; 
 {
   "request": {
     "method": "GET",
-    "urlPathEqualTo": "/api/$name"
+    "urlPath": "/api/$name"
   },
   "response": {
     "status": 200,
@@ -57,7 +57,7 @@ for name in transaction_add transaction_edit transaction_delete upload_statement
 {
   "request": {
     "method": "POST",
-    "urlPathEqualTo": "/api/$name"
+    "urlPath": "/api/$name"
   },
   "response": {
     "status": 200,

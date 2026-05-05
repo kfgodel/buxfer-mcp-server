@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "POST",
-    "urlPathEqualTo": "/api/upload_statement"
+    "urlPath": "/api/upload_statement"
   },
   "response": {
     "status": 200,

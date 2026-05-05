@@ -235,15 +235,25 @@ immediately, or (b) follow-up items captured at the bottom of this doc.
 
 ---
 
-## Resuming Phase 4 (2026-05-04)
+## Resuming review (2026-05-05)
 
-**Done:** Phases 1, 2, 3, 4a — AssertJ migration, Logback rolling-file logging, configurable base URL via `BuxferClientConfig`, server-bootstrap unit tests. All 39 tests green.
+**Done:** Phases 1–4 (1, 2, 3, 4a, 4b). 58 tests green.
 
-Phase 4a notes:
-- Added the `idea` plugin + `isDownloadSources = true` to [build.gradle.kts](build.gradle.kts) so source jars are reliably resolved and the LSP indexes them — `hover` and `goToDefinition` now reach the SDK source directly.
-- Captured the two non-obvious SDK gotchas (the `ServerCapabilities()` `tools = null` trap and the absence of `InMemoryTransport`) in [CLAUDE.md](CLAUDE.md) §"SDK gotchas".
-- Bootstrap exposure: kept `private val server` and added a public read-only `toolDescriptors: Map<String, String?>` introspection property on `BuxferMcpServer` (no `internal` backdoor; tests use the same surface any consumer would).
-- New test file [src/test/kotlin/com/buxfer/mcp/BuxferMcpServerTest.kt](src/test/kotlin/com/buxfer/mcp/BuxferMcpServerTest.kt) with two cases: registered set is exactly the expected 12 tool names; every description is non-blank.
-- **Bug found and fixed.** Original bootstrap passed `ServerCapabilities()` with `tools = null`; `Server.addTool` requires `tools` capability to be non-null and threw `IllegalStateException` at construction time. Fixed by passing `ServerCapabilities(tools = ServerCapabilities.Tools())`. The bootstrap had been broken on every startup — the new test uncovered it on first construction.
+Phase 4a notes (kept for context):
+- `idea` plugin + `isDownloadSources = true` in [build.gradle.kts](build.gradle.kts) so the LSP indexes SDK sources directly.
+- Two non-obvious SDK gotchas captured in [CLAUDE.md](CLAUDE.md) §"SDK gotchas" (`ServerCapabilities()` `tools = null` trap; no `InMemoryTransport` ships in 0.11.x — though see 4b for the published alternative).
+- Public `toolDescriptors: Map<String, String?>` introspection accessor on `BuxferMcpServer` (kept `server` private; no `internal` backdoors).
+- [BuxferMcpServerTest](src/test/kotlin/com/buxfer/mcp/BuxferMcpServerTest.kt) — 2 cases.
+- Production bug found: bootstrap was passing `ServerCapabilities()` with `tools = null`; fixed to `ServerCapabilities(tools = ServerCapabilities.Tools())`. Server had been crashing on every startup; uncovered on first construction by the new test.
 
-**Next:** Phase 4b — WireMock + custom in-memory transport, separate session. The SDK doesn't ship one (see CLAUDE.md gotcha); roll your own by extending `AbstractTransport` and dispatching inbound messages via `_onMessage`.
+Phase 4b notes:
+- Discovered `kotlin-sdk-testing:0.11.1` ships the supported `ChannelTransport.createLinkedPair()` for in-process server↔client wiring. Used that — no hand-rolled transport.
+- Eliminated `internal var token` on `BuxferClient` (now `private`); existing [BuxferClientTest](src/test/kotlin/com/buxfer/mcp/api/BuxferClientTest.kt) goes through real `login(...)` against the MockEngine `/login` stub. The "login stores token" assertion rewrote as a behavioral check (next call carries the token).
+- Added `start(transport: Transport)` overload to [BuxferMcpServer](src/main/kotlin/com/buxfer/mcp/BuxferMcpServer.kt) so tests can drive a non-stdio transport without exposing `server`.
+- [WireMockSupport](src/test/kotlin/com/buxfer/mcp/testing/WireMockSupport.kt) — embedded WireMock helper, mirrors the Docker layout from [api-recordings/compose.yml](../api-recordings/compose.yml). Stages a tmp dir whose `__files` symlinks to the responses dir (Docker mounts `responses/` as `__files` directly; embedded WireMock needs the canonical `<root>/__files/<bodyFileName>` shape).
+- [BuxferClientIntegrationTest](src/test/kotlin/com/buxfer/mcp/api/BuxferClientIntegrationTest.kt) — 14 scenarios, one per `BuxferClient` public method, real HTTP through embedded WireMock.
+- [BuxferMcpServerIntegrationTest](src/test/kotlin/com/buxfer/mcp/BuxferMcpServerIntegrationTest.kt) — 5 scenarios exercising the full pipeline (Client ↔ ChannelTransport ↔ Server ↔ tools ↔ BuxferClient ↔ HTTP ↔ WireMock): listTools, list_accounts round-trip, filter threading via WireMock request journal, add_transaction form post, error envelope → `isError`.
+- **Fixture bug found and fixed.** All 13 mappings in `shared/test-fixtures/wiremock/mappings/*.json` and the `api-recordings/generate-wiremock.sh` generator used `"urlPathEqualTo"` (a Java DSL method name) where WireMock 3.x JSON expects `"urlPath"`. Changed to `urlPath` everywhere; the Docker WireMock mappings work correctly now too.
+- Known fixture gap (out of scope): `shared/test-fixtures/wiremock/__files/upload_statement.json` is `{}` (the endpoint requires manual capture per [api-recordings/CLAUDE.md](../api-recordings/CLAUDE.md)). The integration test for `uploadStatement` overrides the WireMock stub inline rather than relying on the empty file.
+
+**Next:** Phase 5 — bottom-up code review walkthrough. Order and lens already specified above.
