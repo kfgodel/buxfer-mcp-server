@@ -5,8 +5,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Account(
     val id: Int,
-    val name: String,
-    val bank: String,
-    val balance: Double,
-    val currency: String
+    val name: String? = null,
+    val bank: String? = null,
+    val balance: Double? = null,
+    val currency: String? = null
 )

@@ -22,6 +22,7 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.Parameters
 import io.ktor.http.isSuccess
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -63,6 +64,13 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
         } catch (e: BuxferApiException) {
             log.error("Buxfer API error on {} {}: {}", method, path, e.message)
             throw e
+        } catch (e: SerializationException) {
+            // Surfaces as a precise BuxferApiException so callers see the endpoint
+            // alongside kotlinx.serialization's field-and-path detail (e.g. "Field
+            // 'id' is required ... at path: $[0]"). Real API drift becomes
+            // immediately diagnosable instead of crashing deep in tool code.
+            log.error("Buxfer API parse error on {} {}: {}", method, path, e.message)
+            throw BuxferApiException("Failed to parse $method $path response: ${e.message}", e)
         }
     }
 

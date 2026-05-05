@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Member(
     val id: Int,
-    val name: String,
-    val email: String,
-    val balance: Double
+    val name: String? = null,
+    val email: String? = null,
+    val balance: Double? = null
 )

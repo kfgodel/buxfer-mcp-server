@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Loan(
     val entity: String,
-    val type: String,
-    val balance: Double,
-    val description: String
+    val type: String? = null,
+    val balance: Double? = null,
+    val description: String? = null
 )

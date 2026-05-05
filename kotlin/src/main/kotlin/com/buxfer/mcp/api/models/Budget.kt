@@ -5,12 +5,12 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Budget(
     val id: Int,
-    val name: String,
-    val limit: Double,
-    val spent: Double,
-    val balance: Double,
-    val period: String,
-    val periodUnit: String,
+    val name: String? = null,
+    val limit: Double? = null,
+    val spent: Double? = null,
+    val balance: Double? = null,
+    val period: String? = null,
+    val periodUnit: String? = null,
     val editMode: String? = null,
     val periodSize: Int? = null,
     val startDate: String? = null,

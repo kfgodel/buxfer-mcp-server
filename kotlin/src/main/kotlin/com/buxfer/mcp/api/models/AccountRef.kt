@@ -5,5 +5,5 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class AccountRef(
     val id: Int,
-    val name: String
+    val name: String? = null
 )
