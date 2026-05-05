@@ -4,8 +4,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class Tag(
-    val id: Int = 0,
-    val name: String = "",
-    val relativeName: String = "",
+    val id: Int,
+    val name: String,
+    val relativeName: String,
     val parentId: Int? = null
 )

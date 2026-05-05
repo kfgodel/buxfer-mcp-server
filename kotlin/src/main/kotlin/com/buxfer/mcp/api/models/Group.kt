@@ -4,8 +4,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class Group(
-    val id: Int = 0,
-    val name: String = "",
-    val consolidated: Boolean = false,
+    val id: Int,
+    val name: String,
+    val consolidated: Boolean,
     val members: List<Member> = emptyList()
 )
