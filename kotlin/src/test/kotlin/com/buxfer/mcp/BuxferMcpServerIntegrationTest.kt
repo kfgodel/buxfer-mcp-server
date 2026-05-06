@@ -9,12 +9,14 @@ import com.github.tomakehurst.wiremock.client.WireMock.get
 import com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor
 import com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo
 import io.modelcontextprotocol.kotlin.sdk.ExperimentalMcpApi
+import io.modelcontextprotocol.kotlin.sdk.client.Client
 import io.modelcontextprotocol.kotlin.sdk.client.mcpClient
 import io.modelcontextprotocol.kotlin.sdk.testing.ChannelTransport
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import net.javacrumbs.jsonunit.assertj.assertThatJson
 import org.assertj.core.api.Assertions.assertThat
@@ -69,12 +71,20 @@ class BuxferMcpServerIntegrationTest {
         wireMock.resetAll()
     }
 
+    /**
+     * Wire a fresh server↔client pair via in-memory ChannelTransport. The launched server job
+     * is bound to `runTest`'s [TestScope] and is cleaned up when the test scope completes —
+     * no explicit `cancel()` needed.
+     */
+    private suspend fun TestScope.launchMcpClient(): Client {
+        val (clientTransport, serverTransport) = ChannelTransport.createLinkedPair()
+        launch { BuxferMcpServer(httpClient).start(serverTransport) }
+        return mcpClient(Implementation("integration-test", "0.0.0"), transport = clientTransport)
+    }
+
     @Test
     fun `listTools returns the 12 registered MCP tools`() = runTest {
-        val (clientTransport, serverTransport) = ChannelTransport.createLinkedPair()
-        val mcpServer = BuxferMcpServer(httpClient)
-        launch { mcpServer.start(serverTransport) }
-        val client = mcpClient(Implementation("integration-test", "0.0.0"), transport = clientTransport)
+        val client = launchMcpClient()
 
         val result = client.listTools()
 
@@ -99,9 +109,7 @@ class BuxferMcpServerIntegrationTest {
 
     @Test
     fun `buxfer_list_accounts round-trips fixture data through every layer`() = runTest {
-        val (clientTransport, serverTransport) = ChannelTransport.createLinkedPair()
-        launch { BuxferMcpServer(httpClient).start(serverTransport) }
-        val client = mcpClient(Implementation("integration-test", "0.0.0"), transport = clientTransport)
+        val client = launchMcpClient()
 
         val result = client.callTool("buxfer_list_accounts", emptyMap())
 
@@ -115,9 +123,7 @@ class BuxferMcpServerIntegrationTest {
 
     @Test
     fun `tool arguments are threaded into the HTTP request query string`() = runTest {
-        val (clientTransport, serverTransport) = ChannelTransport.createLinkedPair()
-        launch { BuxferMcpServer(httpClient).start(serverTransport) }
-        val client = mcpClient(Implementation("integration-test", "0.0.0"), transport = clientTransport)
+        val client = launchMcpClient()
 
         client.callTool("buxfer_list_transactions", mapOf("accountId" to 10350))
 
@@ -130,9 +136,7 @@ class BuxferMcpServerIntegrationTest {
 
     @Test
     fun `buxfer_add_transaction posts form data and returns the created transaction`() = runTest {
-        val (clientTransport, serverTransport) = ChannelTransport.createLinkedPair()
-        launch { BuxferMcpServer(httpClient).start(serverTransport) }
-        val client = mcpClient(Implementation("integration-test", "0.0.0"), transport = clientTransport)
+        val client = launchMcpClient()
 
         val result = client.callTool("buxfer_add_transaction", mapOf(
             "description" to "Test Transaction",
@@ -158,9 +162,7 @@ class BuxferMcpServerIntegrationTest {
                 .withHeader("Content-Type", "application/json")
                 .withBody("""{"response":{"status":"error","error":"boom"}}""")))
 
-        val (clientTransport, serverTransport) = ChannelTransport.createLinkedPair()
-        launch { BuxferMcpServer(httpClient).start(serverTransport) }
-        val client = mcpClient(Implementation("integration-test", "0.0.0"), transport = clientTransport)
+        val client = launchMcpClient()
 
         val result = client.callTool("buxfer_list_transactions", emptyMap())
 
