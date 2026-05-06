@@ -6,7 +6,9 @@ import org.slf4j.LoggerFactory
 
 class BudgetTools(private val client: BuxferClient) {
 
-    private val log = LoggerFactory.getLogger(BudgetTools::class.java)
+    companion object {
+        private val log = LoggerFactory.getLogger(BudgetTools::class.java)
+    }
 
     suspend fun listBudgets(): CallToolResult =
         mcpTool("buxfer_list_budgets", log) { client.getBudgets() }

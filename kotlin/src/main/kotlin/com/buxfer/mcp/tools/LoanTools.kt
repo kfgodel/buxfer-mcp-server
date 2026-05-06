@@ -6,7 +6,9 @@ import org.slf4j.LoggerFactory
 
 class LoanTools(private val client: BuxferClient) {
 
-    private val log = LoggerFactory.getLogger(LoanTools::class.java)
+    companion object {
+        private val log = LoggerFactory.getLogger(LoanTools::class.java)
+    }
 
     suspend fun listLoans(): CallToolResult =
         mcpTool("buxfer_list_loans", log) { client.getLoans() }

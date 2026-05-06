@@ -6,7 +6,9 @@ import org.slf4j.LoggerFactory
 
 class ContactTools(private val client: BuxferClient) {
 
-    private val log = LoggerFactory.getLogger(ContactTools::class.java)
+    companion object {
+        private val log = LoggerFactory.getLogger(ContactTools::class.java)
+    }
 
     suspend fun listContacts(): CallToolResult =
         mcpTool("buxfer_list_contacts", log) { client.getContacts() }

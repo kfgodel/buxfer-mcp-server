@@ -16,14 +16,16 @@ import org.slf4j.LoggerFactory
 
 class TransactionTools(private val client: BuxferClient) {
 
-    private val log = LoggerFactory.getLogger(TransactionTools::class.java)
+    companion object {
+        private val log = LoggerFactory.getLogger(TransactionTools::class.java)
 
-    /**
-     * Always-redacted arg keys (mirrored in logback.xml header).
-     *  - statement: raw bank-statement text (often many KB; would leak transaction history wholesale).
-     *  - password : credential, not currently a tool arg but listed defensively in case it is added later.
-     */
-    private val redactedArgs = setOf("statement", "password")
+        /**
+         * Always-redacted arg keys (mirrored in logback.xml header).
+         *  - statement: raw bank-statement text (often many KB; would leak transaction history wholesale).
+         *  - password : credential, not currently a tool arg but listed defensively in case it is added later.
+         */
+        private val redactedArgs = setOf("statement", "password")
+    }
 
     private fun logToolEntry(name: String, args: JsonObject?) {
         // INFO: keys only (always safe to log even when sensitive values are present).

@@ -6,7 +6,9 @@ import org.slf4j.LoggerFactory
 
 class TagTools(private val client: BuxferClient) {
 
-    private val log = LoggerFactory.getLogger(TagTools::class.java)
+    companion object {
+        private val log = LoggerFactory.getLogger(TagTools::class.java)
+    }
 
     suspend fun listTags(): CallToolResult =
         mcpTool("buxfer_list_tags", log) { client.getTags() }

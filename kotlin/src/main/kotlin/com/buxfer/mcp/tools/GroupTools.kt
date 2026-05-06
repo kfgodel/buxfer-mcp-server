@@ -6,7 +6,9 @@ import org.slf4j.LoggerFactory
 
 class GroupTools(private val client: BuxferClient) {
 
-    private val log = LoggerFactory.getLogger(GroupTools::class.java)
+    companion object {
+        private val log = LoggerFactory.getLogger(GroupTools::class.java)
+    }
 
     suspend fun listGroups(): CallToolResult =
         mcpTool("buxfer_list_groups", log) { client.getGroups() }

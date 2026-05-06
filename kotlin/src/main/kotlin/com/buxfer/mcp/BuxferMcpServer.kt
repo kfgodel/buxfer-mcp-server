@@ -22,7 +22,9 @@ import org.slf4j.LoggerFactory
 
 class BuxferMcpServer(client: BuxferClient) {
 
-    private val log = LoggerFactory.getLogger(BuxferMcpServer::class.java)
+    companion object {
+        private val log = LoggerFactory.getLogger(BuxferMcpServer::class.java)
+    }
 
     private val transactionTools = TransactionTools(client)
     private val accountTools = AccountTools(client)
