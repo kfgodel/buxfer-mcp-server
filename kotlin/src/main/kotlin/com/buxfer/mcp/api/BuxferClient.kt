@@ -124,13 +124,25 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
         log.debug("login: token acquired")
     }
 
-    suspend fun getAccounts(): List<Account> = traced("GET", "/accounts") {
-        val response = httpClient.get("${config.baseUrl}/accounts") {
-            parameter("token", requireToken())
+    /**
+     * Authenticated GET that returns a list deserialized from the named JSON key
+     * inside the `response` envelope. Used by every resource list endpoint
+     * (`/accounts`, `/tags`, `/budgets`, …) which all share this exact shape.
+     *
+     * `inline reified` is required so each call site gets a concrete `T` for
+     * `decodeFromJsonElement`; the helper itself is `private` so inlining can
+     * still access `httpClient`, `config`, and `requireToken()`.
+     */
+    private suspend inline fun <reified T> getList(path: String, jsonKey: String): List<T> =
+        traced("GET", path) {
+            val response = httpClient.get("${config.baseUrl}$path") {
+                parameter("token", requireToken())
+            }
+            val body = responseBody(text(response))
+            buxferJson.decodeFromJsonElement(body[jsonKey] ?: JsonArray(emptyList()))
         }
-        val body = responseBody(text(response))
-        buxferJson.decodeFromJsonElement(body["accounts"] ?: JsonArray(emptyList()))
-    }
+
+    suspend fun getAccounts(): List<Account> = getList("/accounts", "accounts")
 
     suspend fun getTransactions(filters: TransactionFilters = TransactionFilters()): TransactionsResult =
         traced("GET", "/transactions") {
@@ -224,51 +236,15 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
             buxferJson.decodeFromJsonElement(body)
         }
 
-    suspend fun getTags(): List<Tag> = traced("GET", "/tags") {
-        val response = httpClient.get("${config.baseUrl}/tags") {
-            parameter("token", requireToken())
-        }
-        val body = responseBody(text(response))
-        buxferJson.decodeFromJsonElement(body["tags"] ?: JsonArray(emptyList()))
-    }
+    suspend fun getTags(): List<Tag> = getList("/tags", "tags")
 
-    suspend fun getBudgets(): List<Budget> = traced("GET", "/budgets") {
-        val response = httpClient.get("${config.baseUrl}/budgets") {
-            parameter("token", requireToken())
-        }
-        val body = responseBody(text(response))
-        buxferJson.decodeFromJsonElement(body["budgets"] ?: JsonArray(emptyList()))
-    }
+    suspend fun getBudgets(): List<Budget> = getList("/budgets", "budgets")
 
-    suspend fun getReminders(): List<Reminder> = traced("GET", "/reminders") {
-        val response = httpClient.get("${config.baseUrl}/reminders") {
-            parameter("token", requireToken())
-        }
-        val body = responseBody(text(response))
-        buxferJson.decodeFromJsonElement(body["reminders"] ?: JsonArray(emptyList()))
-    }
+    suspend fun getReminders(): List<Reminder> = getList("/reminders", "reminders")
 
-    suspend fun getGroups(): List<Group> = traced("GET", "/groups") {
-        val response = httpClient.get("${config.baseUrl}/groups") {
-            parameter("token", requireToken())
-        }
-        val body = responseBody(text(response))
-        buxferJson.decodeFromJsonElement(body["groups"] ?: JsonArray(emptyList()))
-    }
+    suspend fun getGroups(): List<Group> = getList("/groups", "groups")
 
-    suspend fun getContacts(): List<Contact> = traced("GET", "/contacts") {
-        val response = httpClient.get("${config.baseUrl}/contacts") {
-            parameter("token", requireToken())
-        }
-        val body = responseBody(text(response))
-        buxferJson.decodeFromJsonElement(body["contacts"] ?: JsonArray(emptyList()))
-    }
+    suspend fun getContacts(): List<Contact> = getList("/contacts", "contacts")
 
-    suspend fun getLoans(): List<Loan> = traced("GET", "/loans") {
-        val response = httpClient.get("${config.baseUrl}/loans") {
-            parameter("token", requireToken())
-        }
-        val body = responseBody(text(response))
-        buxferJson.decodeFromJsonElement(body["loans"] ?: JsonArray(emptyList()))
-    }
+    suspend fun getLoans(): List<Loan> = getList("/loans", "loans")
 }
