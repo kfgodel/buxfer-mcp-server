@@ -65,6 +65,7 @@ class BuxferMcpServerIntegrationTest {
 
     @AfterEach
     fun tearDown() {
+        httpClient.close()
         wireMock.resetAll()
     }
 

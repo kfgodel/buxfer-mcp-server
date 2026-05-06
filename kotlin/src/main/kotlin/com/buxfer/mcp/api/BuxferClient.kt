@@ -37,7 +37,7 @@ internal val buxferJson = Json {
     encodeDefaults = true
 }
 
-class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()) {
+class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()) : AutoCloseable {
 
     companion object {
         private val log = LoggerFactory.getLogger(BuxferClient::class.java)
@@ -48,6 +48,14 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
     @Volatile private var token: String? = null
 
     private fun requireToken() = token ?: throw BuxferApiException("Not logged in — call login() first")
+
+    /** Releases the underlying Ktor HTTP client and its engine. After close(), the
+     *  client cannot be used. Tests should `.use { ... }`; the long-running server
+     *  closes via the JVM shutdown hook in [Main][com.buxfer.mcp.Main].
+     */
+    override fun close() {
+        httpClient.close()
+    }
 
     /**
      * Run an HTTP call with redacted DEBUG-level request/response logging.

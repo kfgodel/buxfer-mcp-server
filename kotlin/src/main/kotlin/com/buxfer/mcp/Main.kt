@@ -26,16 +26,17 @@ fun main() {
     }
 
     runBlocking {
-        val client = BuxferClient()
-        try {
-            client.login(email, password)
-        } catch (e: BuxferApiException) {
-            val msg = "Login failed: ${e.message}"
-            System.err.println(msg)
-            log.error(msg, e)
-            exitProcess(1)
+        BuxferClient().use { client ->
+            try {
+                client.login(email, password)
+            } catch (e: BuxferApiException) {
+                val msg = "Login failed: ${e.message}"
+                System.err.println(msg)
+                log.error(msg, e)
+                exitProcess(1)
+            }
+            log.info("Login OK; starting MCP server")
+            BuxferMcpServer(client).start()
         }
-        log.info("Login OK; starting MCP server")
-        BuxferMcpServer(client).start()
     }
 }

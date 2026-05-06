@@ -54,6 +54,7 @@ class BuxferClientIntegrationTest {
 
     @AfterEach
     fun tearDown() {
+        client.close()
         wireMock.resetRequests()
     }
 

@@ -12,6 +12,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.data.Index.atIndex
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -48,6 +49,11 @@ class BuxferClientTest {
         client.login("user@example.com", "password")
     }
 
+    @AfterEach
+    fun tearDown() {
+        client.close()
+    }
+
     @Test
     fun `login stores token from response and attaches it to subsequent requests`() = runTest {
         val capturedTokens = mutableListOf<String?>()
@@ -57,13 +63,13 @@ class BuxferClientTest {
                        else TestFixtureLoader.load("accounts")
             respond(body, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
         }
-        val freshClient = BuxferClient(BuxferClientConfig(engine = engine))
+        BuxferClient(BuxferClientConfig(engine = engine)).use { freshClient ->
+            freshClient.login("user@example.com", "password")
+            freshClient.getAccounts()
 
-        freshClient.login("user@example.com", "password")
-        freshClient.getAccounts()
-
-        // First request is /login (no token); second is /accounts carrying the token from the login response.
-        assertThat(capturedTokens).containsExactly(null, "test-mock-token")
+            // First request is /login (no token); second is /accounts carrying the token from the login response.
+            assertThat(capturedTokens).containsExactly(null, "test-mock-token")
+        }
     }
 
     @Test
@@ -220,12 +226,13 @@ class BuxferClientTest {
 
     @Test
     fun `throws BuxferApiException on non-OK status`() = runTest {
-        val errorClient = BuxferClient(BuxferClientConfig(engine = mockEngine(overrides = mapOf(
+        BuxferClient(BuxferClientConfig(engine = mockEngine(overrides = mapOf(
             "/accounts" to """{"response":{"status":"error","error":"Invalid token"}}"""
-        ))))
-        errorClient.login("user@example.com", "password")
-        val ex = assertThrows<BuxferApiException> { errorClient.getAccounts() }
-        assertThat(ex.message).isEqualTo("Invalid token")
+        )))).use { errorClient ->
+            errorClient.login("user@example.com", "password")
+            val ex = assertThrows<BuxferApiException> { errorClient.getAccounts() }
+            assertThat(ex.message).isEqualTo("Invalid token")
+        }
     }
 
     @Test
@@ -237,10 +244,11 @@ class BuxferClientTest {
                        else TestFixtureLoader.load("accounts")
             respond(body, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
         }
-        val customClient = BuxferClient(BuxferClientConfig(engine = engine, baseUrl = "https://custom.example.test/api"))
-        customClient.login("user@example.com", "password")
-        customClient.getAccounts()
-        assertThat(capturedHosts).containsOnly("custom.example.test")
+        BuxferClient(BuxferClientConfig(engine = engine, baseUrl = "https://custom.example.test/api")).use { customClient ->
+            customClient.login("user@example.com", "password")
+            customClient.getAccounts()
+            assertThat(capturedHosts).containsOnly("custom.example.test")
+        }
     }
 
     @Test
@@ -252,16 +260,17 @@ class BuxferClientTest {
         val engine = mockEngine(overrides = mapOf(
             "/accounts" to """{"response":{"status":"OK","accounts":[{"name":"x"}]}}"""
         ))
-        val parseClient = BuxferClient(BuxferClientConfig(engine = engine))
-        parseClient.login("user@example.com", "password")
+        BuxferClient(BuxferClientConfig(engine = engine)).use { parseClient ->
+            parseClient.login("user@example.com", "password")
 
-        val ex = assertThrows<BuxferApiException> { parseClient.getAccounts() }
+            val ex = assertThrows<BuxferApiException> { parseClient.getAccounts() }
 
-        assertThat(ex.message)
-            .contains("GET /accounts")
-            .contains("id")
-            .contains("Account")
-        assertThat(ex.cause).isInstanceOf(kotlinx.serialization.SerializationException::class.java)
+            assertThat(ex.message)
+                .contains("GET /accounts")
+                .contains("id")
+                .contains("Account")
+            assertThat(ex.cause).isInstanceOf(kotlinx.serialization.SerializationException::class.java)
+        }
     }
 
     @Test
@@ -272,8 +281,9 @@ class BuxferClientTest {
             else
                 respond("Server Error", HttpStatusCode.InternalServerError)
         }
-        val errorClient = BuxferClient(BuxferClientConfig(engine = engine))
-        errorClient.login("user@example.com", "password")
-        assertThrows<BuxferApiException> { errorClient.getAccounts() }
+        BuxferClient(BuxferClientConfig(engine = engine)).use { errorClient ->
+            errorClient.login("user@example.com", "password")
+            assertThrows<BuxferApiException> { errorClient.getAccounts() }
+        }
     }
 }
