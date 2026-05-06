@@ -83,7 +83,9 @@ class TransactionToolsTest {
         assertThatJson(text).inPath("$.transactions[0].transactionType").isEqualTo("expense")
         assertThatJson(text).inPath("$.transactions[0].isFutureDated").isEqualTo(false)
         assertThatJson(text).inPath("$.transactions[0].isPending").isEqualTo(false)
-        assertThatJson(text).inPath("$.transactions[0].tagNames").isArray.hasSize(0)
+        // tagNames is omitted when empty (Json { encodeDefaults = false }) — keeps the
+        // JSON Claude sees free of "field": [] noise.
+        assertThatJson(text).inPath("$.transactions[0].tagNames").isAbsent()
         // transfer has fromAccount/toAccount
         assertThatJson(text).inPath("$.transactions[3].fromAccount.id").isEqualTo(603017)
         assertThatJson(text).inPath("$.transactions[3].toAccount.id").isEqualTo(1100868)

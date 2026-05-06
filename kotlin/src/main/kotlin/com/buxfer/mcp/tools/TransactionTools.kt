@@ -67,14 +67,7 @@ class TransactionTools(private val client: BuxferClient) {
             page = args?.get("page")?.jsonPrimitive?.intOrNull
         )
         val result = client.getTransactions(filters)
-        val json = buildString {
-            append("{\"transactions\":")
-            append(buxferJson.encodeToString(result.transactions))
-            append(",\"numTransactions\":")
-            append(result.numTransactions)
-            append("}")
-        }
-        CallToolResult(content = listOf(TextContent(json)))
+        CallToolResult(content = listOf(TextContent(buxferJson.encodeToString(result))))
     }.getOrElse { e ->
         log.error("tool=buxfer_list_transactions failed", e)
         CallToolResult(content = listOf(TextContent("Error: ${e.message}")), isError = true)
@@ -83,13 +76,13 @@ class TransactionTools(private val client: BuxferClient) {
     suspend fun addTransaction(args: JsonObject?): CallToolResult = runCatching {
         logToolEntry("buxfer_add_transaction", args)
         val params = AddTransactionParams(
-            description = args?.get("description")?.jsonPrimitive?.contentOrNull ?: "",
-            amount = args?.get("amount")?.jsonPrimitive?.doubleOrNull ?: 0.0,
-            accountId = args?.get("accountId")?.jsonPrimitive?.intOrNull ?: 0,
-            date = args?.get("date")?.jsonPrimitive?.contentOrNull ?: "",
-            tags = args?.get("tags")?.jsonPrimitive?.contentOrNull,
-            type = args?.get("type")?.jsonPrimitive?.contentOrNull,
-            status = args?.get("status")?.jsonPrimitive?.contentOrNull
+            description = args.requireString("description"),
+            amount = args.requireDouble("amount"),
+            accountId = args.requireInt("accountId"),
+            date = args.requireString("date"),
+            tags = args.optString("tags"),
+            type = args.optString("type"),
+            status = args.optString("status")
         )
         val tx = client.addTransaction(params)
         CallToolResult(content = listOf(TextContent(buxferJson.encodeToString(tx))))
@@ -100,15 +93,15 @@ class TransactionTools(private val client: BuxferClient) {
 
     suspend fun editTransaction(args: JsonObject?): CallToolResult = runCatching {
         logToolEntry("buxfer_edit_transaction", args)
-        val id = args?.get("id")?.jsonPrimitive?.intOrNull ?: 0
+        val id = args.requireInt("id")
         val params = AddTransactionParams(
-            description = args?.get("description")?.jsonPrimitive?.contentOrNull ?: "",
-            amount = args?.get("amount")?.jsonPrimitive?.doubleOrNull ?: 0.0,
-            accountId = args?.get("accountId")?.jsonPrimitive?.intOrNull ?: 0,
-            date = args?.get("date")?.jsonPrimitive?.contentOrNull ?: "",
-            tags = args?.get("tags")?.jsonPrimitive?.contentOrNull,
-            type = args?.get("type")?.jsonPrimitive?.contentOrNull,
-            status = args?.get("status")?.jsonPrimitive?.contentOrNull
+            description = args.requireString("description"),
+            amount = args.requireDouble("amount"),
+            accountId = args.requireInt("accountId"),
+            date = args.requireString("date"),
+            tags = args.optString("tags"),
+            type = args.optString("type"),
+            status = args.optString("status")
         )
         val tx = client.editTransaction(id, params)
         CallToolResult(content = listOf(TextContent(buxferJson.encodeToString(tx))))
@@ -119,7 +112,7 @@ class TransactionTools(private val client: BuxferClient) {
 
     suspend fun deleteTransaction(args: JsonObject?): CallToolResult = runCatching {
         logToolEntry("buxfer_delete_transaction", args)
-        val id = args?.get("id")?.jsonPrimitive?.intOrNull ?: 0
+        val id = args.requireInt("id")
         client.deleteTransaction(id)
         CallToolResult(content = listOf(TextContent("{\"deleted\":true,\"id\":$id}")))
     }.getOrElse { e ->
@@ -131,9 +124,9 @@ class TransactionTools(private val client: BuxferClient) {
         // The 'statement' arg is stripped from DEBUG output by logToolEntry's redactedArgs set.
         // See logback.xml header for the full redaction policy.
         logToolEntry("buxfer_upload_statement", args)
-        val accountId = args?.get("accountId")?.jsonPrimitive?.intOrNull ?: 0
-        val statement = args?.get("statement")?.jsonPrimitive?.contentOrNull ?: ""
-        val dateFormat = args?.get("dateFormat")?.jsonPrimitive?.contentOrNull
+        val accountId = args.requireInt("accountId")
+        val statement = args.requireString("statement")
+        val dateFormat = args.optString("dateFormat")
         val result = client.uploadStatement(accountId, statement, dateFormat)
         CallToolResult(content = listOf(TextContent(buxferJson.encodeToString(result))))
     }.getOrElse { e ->

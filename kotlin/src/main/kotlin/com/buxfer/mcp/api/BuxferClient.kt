@@ -34,8 +34,16 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.slf4j.LoggerFactory
 
 internal val buxferJson = Json {
+    // Tolerate API drift inbound: a new Buxfer field doesn't crash deserialization.
+    // Required fields (no default) still fail loudly when missing — that's how we
+    // detect real drift on identity fields.
     ignoreUnknownKeys = true
-    encodeDefaults = true
+    // Drop fields equal to their declared default on the way out (e.g. nullable
+    // fields that are null, list fields that are empty). Keeps the JSON we surface
+    // to Claude compact and free of "field": null / "field": [] noise. Set
+    // explicitly even though it matches the library default — the choice is part
+    // of the contract, not an accident of inheritance.
+    encodeDefaults = false
 }
 
 class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()) : AutoCloseable {
