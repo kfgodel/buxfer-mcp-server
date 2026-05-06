@@ -257,3 +257,31 @@ Phase 4b notes:
 - Known fixture gap (out of scope): `shared/test-fixtures/wiremock/__files/upload_statement.json` is `{}` (the endpoint requires manual capture per [api-recordings/CLAUDE.md](../api-recordings/CLAUDE.md)). The integration test for `uploadStatement` overrides the WireMock stub inline rather than relying on the empty file.
 
 **Next:** Phase 5 — bottom-up code review walkthrough. Order and lens already specified above.
+
+---
+
+## Follow-ups identified during Phase 5 review
+
+These were flagged during the Phase 5 walkthrough but deferred to keep each commit focused. Address before the kotlin module is considered complete.
+
+### Resilience to intermittent server failures
+
+`BuxferClient` currently has no retry, no token refresh, no recovery story for transient failures. A flaky Buxfer connection means the MCP tool surfaces a one-shot error that Claude has no good way to recover from.
+
+Decide:
+- Should `traced` retry idempotent GETs on transient failures (5xx, timeouts, connection-refused)? Backoff strategy?
+- Should we re-login if a request returns 401 (expired token)? Today we'd just throw `BuxferApiException`.
+- Wrap `IOException` / `HttpRequestTimeoutException` from Ktor as `BuxferApiException` (currently they leak as Ktor types).
+- Per-call timeout overrides for slow endpoints (statement upload).
+
+### Challenge the fixed-model-class approach
+
+This is an MCP server: Buxfer JSON in, JSON out to Claude. **Claude is the data consumer; it parses JSON itself.** The Phase 1 inventory confirmed that no response-model field is read programmatically in our code — every tool just `Json.encodeToString(model)` and forwards. Yet we maintain 14 model classes that hand-mirror the wire format, plus tests that exercise them.
+
+Worth challenging:
+- Could we pass the raw `JsonObject` straight from `BuxferClient` to `TextContent.text`, dropping the response-model layer entirely?
+- The unambiguous keepers are the request/transformation DTOs: `AddTransactionParams`, `TransactionFilters` (Kotlin args → wire form/query). And `TransactionsResult.numTransactions` (we read it). Everything else is a pass-through.
+- What we'd lose: per-field deserialization errors on drift (the precise-error story we just built). Schema-as-Kotlin-types as a contract document.
+- What we'd gain: zero response-model maintenance. New Buxfer fields propagate to Claude with no code change. Less indirection. Tools become near-trivial.
+
+This may dramatically simplify the Tools layer too; resolve before/alongside that review step.
