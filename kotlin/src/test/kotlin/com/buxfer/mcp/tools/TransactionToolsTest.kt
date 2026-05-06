@@ -180,4 +180,51 @@ class TransactionToolsTest {
         assertThat(result.isError).isTrue()
         assertThat((result.content[0] as TextContent).text).contains("Error: boom")
     }
+
+    @Test
+    fun `deleteTransaction surfaces isError when id is missing`() = runTest {
+        val result = tools.deleteTransaction(buildJsonObject { })
+
+        assertThat(result.isError).isTrue()
+        assertThat((result.content[0] as TextContent).text).contains("'id'")
+    }
+
+    @Test
+    fun `editTransaction surfaces isError when accountId is missing`() = runTest {
+        val args: JsonObject = buildJsonObject {
+            put("id", 33645)
+            put("description", "Test Transaction (edited)")
+            put("amount", 0.01)
+            put("date", "2026-04-26")
+        }
+
+        val result = tools.editTransaction(args)
+
+        assertThat(result.isError).isTrue()
+        assertThat((result.content[0] as TextContent).text).contains("'accountId'")
+    }
+
+    @Test
+    fun `addTransaction surfaces isError when description is missing`() = runTest {
+        val args: JsonObject = buildJsonObject {
+            put("amount", 0.01)
+            put("accountId", 10350)
+            put("date", "2026-04-26")
+        }
+
+        val result = tools.addTransaction(args)
+
+        assertThat(result.isError).isTrue()
+        assertThat((result.content[0] as TextContent).text).contains("'description'")
+    }
+
+    @Test
+    fun `uploadStatement surfaces isError when statement is missing`() = runTest {
+        val args: JsonObject = buildJsonObject { put("accountId", 10350) }
+
+        val result = tools.uploadStatement(args)
+
+        assertThat(result.isError).isTrue()
+        assertThat((result.content[0] as TextContent).text).contains("'statement'")
+    }
 }
