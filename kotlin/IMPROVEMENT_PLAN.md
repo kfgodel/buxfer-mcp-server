@@ -260,6 +260,10 @@ Phase 4b notes:
 
 ---
 
+## Test review — separate document
+
+Phase 5's bottom-up review produced a dedicated test-side report: [TEST_REVIEW.md](TEST_REVIEW.md). It catalogs gaps and cleanups in the test suite, ranked by severity, with a recommended order for the next session. Address before considering Phase 5 closed.
+
 ## Follow-ups identified during Phase 5 review
 
 These were flagged during the Phase 5 walkthrough but deferred to keep each commit focused. Address before the kotlin module is considered complete.
