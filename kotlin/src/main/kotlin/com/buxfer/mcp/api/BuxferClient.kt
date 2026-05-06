@@ -28,8 +28,6 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
-import kotlinx.serialization.json.doubleOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.slf4j.LoggerFactory
@@ -75,8 +73,14 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
     }
 
     private suspend fun text(response: HttpResponse): String {
-        if (!response.status.isSuccess()) throw BuxferApiException("HTTP ${response.status.value}: ${response.status.description}")
-        return response.bodyAsText()
+        val body = response.bodyAsText()
+        if (!response.status.isSuccess()) {
+            // Include a body excerpt — Buxfer's 5xx pages and the JSON error envelope
+            // both carry useful context that "HTTP 500" alone hides.
+            val excerpt = body.take(500)
+            throw BuxferApiException("HTTP ${response.status.value}: $excerpt")
+        }
+        return body
     }
 
     private fun responseBody(bodyText: String): JsonObject {
@@ -136,7 +140,11 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
             val transactions: List<Transaction> = buxferJson.decodeFromJsonElement(
                 body["transactions"] ?: JsonArray(emptyList())
             )
-            val numTransactions = body["numTransactions"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0
+            // Buxfer returns numTransactions as a string — decode manually rather than
+            // bend the model. Throw on missing/malformed so a real API change surfaces
+            // (instead of silently turning into "0 transactions").
+            val numTransactions = body["numTransactions"]?.jsonPrimitive?.content?.toIntOrNull()
+                ?: throw BuxferApiException("Missing or malformed 'numTransactions' in /transactions response")
             TransactionsResult(transactions, numTransactions)
         }
 
@@ -154,7 +162,7 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
             }))
         }
         val body = responseBody(text(response))
-        buxferJson.decodeFromJsonElement(JsonObject(body))
+        buxferJson.decodeFromJsonElement(body)
     }
 
     suspend fun editTransaction(id: Int, params: AddTransactionParams): Transaction =
@@ -173,7 +181,7 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
                 }))
             }
             val body = responseBody(text(response))
-            buxferJson.decodeFromJsonElement(JsonObject(body))
+            buxferJson.decodeFromJsonElement(body)
         }
 
     suspend fun deleteTransaction(id: Int): Unit = traced("POST", "/transaction_delete") {
@@ -198,9 +206,7 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
                 }))
             }
             val body = responseBody(text(response))
-            val uploaded = body["uploaded"]?.jsonPrimitive?.intOrNull ?: 0
-            val balance = body["balance"]?.jsonPrimitive?.doubleOrNull ?: 0.0
-            UploadStatementResult(uploaded, balance)
+            buxferJson.decodeFromJsonElement(body)
         }
 
     suspend fun getTags(): List<Tag> = traced("GET", "/tags") {
