@@ -1,6 +1,5 @@
 package com.buxfer.mcp
 
-import com.buxfer.mcp.api.BuxferApiException
 import com.buxfer.mcp.api.BuxferClient
 import kotlin.system.exitProcess
 import kotlinx.coroutines.runBlocking
@@ -16,27 +15,40 @@ fun main() {
     val email = System.getenv("BUXFER_EMAIL")
     val password = System.getenv("BUXFER_PASSWORD")
     if (email.isNullOrBlank() || password.isNullOrBlank()) {
-        // stderr in addition to log: Logback may not have flushed if the process exits this fast,
-        // and the operator launching the process needs to see why it died in their terminal.
-        // (BUXFER_EMAIL is PII per the redaction policy in logback.xml — never log its value.)
-        val msg = "BUXFER_EMAIL and BUXFER_PASSWORD must be set"
-        System.err.println(msg)
-        log.error(msg)
-        exitProcess(1)
+        // BUXFER_EMAIL is PII per the redaction policy in logback.xml — never log its value.
+        fatal("BUXFER_EMAIL and BUXFER_PASSWORD must be set")
     }
 
-    runBlocking {
-        BuxferClient().use { client ->
-            try {
+    try {
+        runBlocking {
+            BuxferClient().use { client ->
                 client.login(email, password)
-            } catch (e: BuxferApiException) {
-                val msg = "Login failed: ${e.message}"
-                System.err.println(msg)
-                log.error(msg, e)
-                exitProcess(1)
+                log.info("Login OK; starting MCP server")
+                BuxferMcpServer(client).start()
             }
-            log.info("Login OK; starting MCP server")
-            BuxferMcpServer(client).start()
         }
+    } catch (e: Exception) {
+        // Defense-in-depth: this is the last line for any fatal error — login failure
+        // (BuxferApiException, IOException, timeout), server init failure, transport
+        // errors mid-session. Main never relies on downstream layers wrapping things;
+        // whatever escapes runBlocking gets logged AND surfaced on stderr before we
+        // exit non-zero.
+        fatal("Fatal: ${e.message}", e)
     }
+}
+
+/**
+ * Surface a fatal startup/runtime error and terminate.
+ *
+ * Writes to stderr in addition to the log because Logback may not have flushed
+ * the file appender by the time we exit, and the operator launching the process
+ * needs to see why it died in their terminal.
+ *
+ * Returns [Nothing] so smart-casts survive the call site (e.g. nullable env-var
+ * checks remain non-null in code that follows a guarded `fatal(...)`).
+ */
+private fun fatal(message: String, cause: Throwable? = null): Nothing {
+    System.err.println(message)
+    if (cause != null) log.error(message, cause) else log.error(message)
+    exitProcess(1)
 }
