@@ -13,6 +13,7 @@ import com.buxfer.mcp.api.models.TransactionFilters
 import com.buxfer.mcp.api.models.TransactionsResult
 import com.buxfer.mcp.api.models.UploadStatementResult
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
@@ -43,7 +44,13 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
         private val log = LoggerFactory.getLogger(BuxferClient::class.java)
     }
 
-    private val httpClient = HttpClient(config.engine)
+    private val httpClient = HttpClient(config.engine) {
+        install(HttpTimeout) {
+            connectTimeoutMillis = config.connectTimeoutMillis
+            requestTimeoutMillis = config.requestTimeoutMillis
+            socketTimeoutMillis = config.socketTimeoutMillis
+        }
+    }
 
     @Volatile private var token: String? = null
 
