@@ -99,7 +99,7 @@ class BuxferMcpServer(client: BuxferClient) {
             description = "List all Buxfer loans."
         ) { _ -> loanTools.listLoans() }
 
-        log.info("Registered 12 MCP tools")
+        log.info("Registered {} MCP tools", tools.size)
     }
 
     val toolDescriptors: Map<String, String?>
@@ -113,6 +113,11 @@ class BuxferMcpServer(client: BuxferClient) {
     )
 
     suspend fun start(transport: Transport) {
-        server.createSession(transport)
+        val session = server.createSession(transport)
+        // Log session id so start/close lines can be paired in operator debugging.
+        log.info("MCP session started: id={} transport={}", session.sessionId, transport::class.simpleName)
+        session.onClose {
+            log.info("MCP session closed: id={}", session.sessionId)
+        }
     }
 }
