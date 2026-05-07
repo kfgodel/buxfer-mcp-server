@@ -2,11 +2,14 @@ package com.buxfer.mcp.tools
 
 import com.buxfer.mcp.api.BuxferApiException
 import com.buxfer.mcp.api.BuxferClient
-import com.buxfer.mcp.api.models.Tag
 import io.mockk.coEvery
 import io.mockk.mockk
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.addJsonObject
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.put
 import net.javacrumbs.jsonunit.assertj.assertThatJson
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -24,11 +27,12 @@ class TagToolsTest {
 
     @Test
     fun `listTags returns JSON array with parentId preserved`() = runTest {
-        val tags = listOf(
-            Tag(id = 9125, name = "Tag 9125", relativeName = "tag 9125", parentId = null),
-            Tag(id = 58045, name = "Tag 58045", relativeName = "tag 58045", parentId = null),
-            Tag(id = 57902, name = "Tag 57902", relativeName = "tag 57902", parentId = 58046)
-        )
+        // BuxferClient.getTags() now returns the raw JsonArray; build the test fixture to match.
+        val tags = buildJsonArray {
+            addJsonObject { put("id", 9125); put("name", "Tag 9125"); put("relativeName", "tag 9125"); put("parentId", JsonNull) }
+            addJsonObject { put("id", 58045); put("name", "Tag 58045"); put("relativeName", "tag 58045"); put("parentId", JsonNull) }
+            addJsonObject { put("id", 57902); put("name", "Tag 57902"); put("relativeName", "tag 57902"); put("parentId", 58046) }
+        }
         coEvery { mockClient.getTags() } returns tags
 
         val result = tools.listTags()

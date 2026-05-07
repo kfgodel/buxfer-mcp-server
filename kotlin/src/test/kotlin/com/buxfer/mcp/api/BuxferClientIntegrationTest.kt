@@ -133,7 +133,7 @@ class BuxferClientIntegrationTest {
     fun `getTags returns deserialized fixture data`() = runTest {
         val tags = client.getTags()
         assertThat(tags).hasSize(3)
-        assertThat(tags[0].id).isEqualTo(9125)
+        assertThatJson(tags.toString()).inPath("$[0].id").isEqualTo(9125)
     }
 
     @Test

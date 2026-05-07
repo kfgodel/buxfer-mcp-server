@@ -319,7 +319,7 @@ Drop response classes as **data carriers** but keep them as **drift-detection sc
 
 The `validateSchema` helper is in place; each remaining endpoint follows the same shape (schema tightening + return-type change + tests update). Per-type findings from the API-doc / fixture / Kotlin-model cross-reference live in the rollout notes:
 
-- **Tag** — small, clean. Fixture always has `id`, `name`, `relativeName`. `parentId` stays nullable (spec says explicitly nullable).
+- **Tag** — **Done (2026-05-07).** `id` / `name` / `relativeName` non-nullable; `parentId` stays nullable. `BuxferClient.getTags()` returns `JsonArray` and validates via `validateSchema<List<Tag>>`. Tightened `Tag` is also referenced by unmigrated `Budget.tag` and `Reminder.tags` — the strict-decode window for partial nested Tags closes as those endpoints migrate (next in queue). The parse-error test in `BuxferClientErrorHandlingTest` was repointed from `/tags` to `/budgets`.
 - **Contact** — clean. All 4 fields (`id`, `name`, `email`, `balance`) fixture-always-present.
 - **Loan** — clean. All 4 fields (`entity`, `type`, `balance`, `description`) fixture-always-present.
 - **Transaction** — biggest scope. Fixture rich; many fields not in spec (`transactionType`, `expenseAmount`, `tagNames`, `isFutureDated`, `isPending`). Conditional fields (`fromAccount`/`toAccount` only on transfers); `accountId` legitimately nullable on transfers. Mystery: `transactionType` vs `type` — possible duplicate, worth user discussion.

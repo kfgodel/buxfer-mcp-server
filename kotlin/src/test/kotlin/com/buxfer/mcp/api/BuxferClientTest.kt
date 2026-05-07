@@ -155,12 +155,12 @@ class BuxferClientTest {
     }
 
     @Test
-    fun `getTags returns parsed Tag list with parentId`() = runTest {
+    fun `getTags returns JsonArray of tag objects with parentId`() = runTest {
         val tags = client.getTags()
-        assertThat(tags)
-            .hasSize(3)
-            .satisfies({ assertThat(it.id).isEqualTo(9125) }, atIndex(0))
-            .satisfies({ assertThat(it.parentId).isEqualTo(58046) }, atIndex(2))
+        assertThat(tags).hasSize(3)
+        val text = tags.toString()
+        assertThatJson(text).inPath("$[0].id").isEqualTo(9125)
+        assertThatJson(text).inPath("$[2].parentId").isEqualTo(58046)
     }
 
     @Test

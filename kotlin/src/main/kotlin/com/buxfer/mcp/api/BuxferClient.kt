@@ -315,7 +315,15 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
             buxferJson.decodeFromJsonElement(body)
         }
 
-    suspend fun getTags(): List<Tag> = getList("/tags", "tags")
+    suspend fun getTags(): JsonArray = traced("GET", "/tags") {
+        val response = httpClient.get("${config.baseUrl}/tags") {
+            parameter("token", requireToken())
+        }
+        val body = responseBody(text(response))
+        val tags = body["tags"]?.jsonArray ?: JsonArray(emptyList())
+        validateSchema<List<Tag>>(tags, "/tags")
+        tags
+    }
 
     suspend fun getBudgets(): List<Budget> = getList("/budgets", "budgets")
 
