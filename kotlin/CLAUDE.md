@@ -6,15 +6,9 @@ A Kotlin/JVM implementation of the Buxfer MCP server. Uses the official [MCP Kot
 
 ## Current improvement work
 
-A multi-session refactor is in flight. Phases 1–5 of [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) — AssertJ migration, Logback rolling-file logging, configurable base URL, server-bootstrap unit tests, integration tests with WireMock + ChannelTransport, and a bottom-up code review of every production layer (Models → API client → Tools → Server → Main) — are complete, including the post-review test-suite follow-through. The resilience follow-up's exception-wrapping piece is also done: `BuxferClient.traced` now wraps every Ktor / IO failure as `BuxferApiException`. The **model-layer challenge is complete** for all eight GET list endpoints (Accounts, Tags, Contacts, Loans, Budgets, Reminders, Groups, Transactions): each `BuxferClient.get*()` now returns the raw `JsonElement` Buxfer sent (envelope-stripped) and validates the shape via the `validateSchema` helper as a warning-only side effect. The data classes survive as drift-detection schemas using a three-tier nullability convention; the legacy `getList<T>` helper is gone. **93 tests green.**
+The multi-session refactor that opened this module is **functionally complete** as of 2026-05-07. Phases 1–5 of the original plan, the post-review test-suite follow-through, the resilience exception-wrapping piece, and the full model-layer challenge (every endpoint — both GET list endpoints and the write endpoints `addTransaction` / `editTransaction` / `uploadStatement`) all landed. Every `BuxferClient.<method>()` now returns the raw `JsonElement` Buxfer sent (envelope-stripped) and validates the shape via the `validateSchema` helper as a warning-only side effect. Data classes in `api/models/` survive as **drift-detection schemas** using the three-tier nullability convention documented in [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md). The legacy `getList<T>` helper is gone. **92 tests green.**
 
-Remaining follow-ups:
-
-1. **Resilience policy decisions (deferred sub-items)** — see [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) §"Resilience to intermittent server failures". Retry on transient failures, re-login on 401 / expired token, per-call timeout overrides — all deliberately not implemented yet because Buxfer's docs are silent on token expiration semantics and we have no operational evidence that retry/timeout speculation would help. Revisit when real-world usage produces a concrete trigger.
-2. **Write endpoints still typed** — `addTransaction`, `editTransaction`, `uploadStatement` (POST endpoints) decode their responses into typed `Transaction` / `UploadStatementResult` and fail loudly on schema drift. Out of scope for the GET-list migration; revisit if drift behavior becomes painful (the same model-as-schema pattern would apply).
-3. **Group fixture gap** — `groups.json` is empty (`[]`), so the Group/Member schemas are fully Tier 3 unverified. Tighten when a real fixture is captured.
-
-All three are wait-for-signal — no in-flight work.
+Three follow-ups remain — all **wait-for-signal**, no in-flight work — see [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) §"Remaining follow-ups": resilience policy (retry / re-login / per-call timeouts), Group fixture gap (empty fixture leaves the schema unverified), multi-language polish (TypeScript and Python implementations).
 
 ## MCP Kotlin SDK Reference
 

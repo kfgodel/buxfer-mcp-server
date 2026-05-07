@@ -112,26 +112,24 @@ class BuxferClientTest {
     }
 
     @Test
-    fun `addTransaction returns created Transaction`() = runTest {
+    fun `addTransaction returns JsonObject of created transaction`() = runTest {
         val tx = client.addTransaction(
             AddTransactionParams("Test Transaction", 0.01, 10350, "2026-04-26")
         )
-        assertThat(tx).satisfies({
-            assertThat(it.id).isEqualTo(33645)
-            assertThat(it.type).isEqualTo("expense")
-        })
+        val text = tx.toString()
+        assertThatJson(text).inPath("$.id").isEqualTo(33645)
+        assertThatJson(text).inPath("$.type").isEqualTo("expense")
     }
 
     @Test
-    fun `editTransaction returns updated Transaction`() = runTest {
+    fun `editTransaction returns JsonObject of updated transaction`() = runTest {
         val tx = client.editTransaction(
             33645,
             AddTransactionParams("Test Transaction (edited)", 0.01, 10350, "2026-04-26")
         )
-        assertThat(tx).satisfies({
-            assertThat(it.id).isEqualTo(33645)
-            assertThat(it.description).isEqualTo("Test Transaction (edited)")
-        })
+        val text = tx.toString()
+        assertThatJson(text).inPath("$.id").isEqualTo(33645)
+        assertThatJson(text).inPath("$.description").isEqualTo("Test Transaction (edited)")
     }
 
     @Test
@@ -141,12 +139,11 @@ class BuxferClientTest {
     }
 
     @Test
-    fun `uploadStatement returns upload count and balance`() = runTest {
+    fun `uploadStatement returns JsonObject with upload count and balance`() = runTest {
         val result = client.uploadStatement(10350, "csv-content")
-        assertThat(result).satisfies({
-            assertThat(it.uploaded).isEqualTo(15)
-            assertThat(it.balance).isEqualTo(1234.56)
-        })
+        val text = result.toString()
+        assertThatJson(text).inPath("$.uploaded").isEqualTo(15)
+        assertThatJson(text).inPath("$.balance").isEqualTo(1234.56)
     }
 
     @Test

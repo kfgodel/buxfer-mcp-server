@@ -96,7 +96,7 @@ class BuxferClientIntegrationTest {
     @Test
     fun `addTransaction posts form data and returns the created transaction`() = runTest {
         val tx = client.addTransaction(AddTransactionParams("Test Transaction", 0.01, 10350, "2026-04-26"))
-        assertThat(tx.id).isEqualTo(33645)
+        assertThatJson(tx.toString()).inPath("$.id").isEqualTo(33645)
     }
 
     @Test
@@ -105,7 +105,7 @@ class BuxferClientIntegrationTest {
             33645,
             AddTransactionParams("Test Transaction (edited)", 0.01, 10350, "2026-04-26")
         )
-        assertThat(tx.id).isEqualTo(33645)
+        assertThatJson(tx.toString()).inPath("$.id").isEqualTo(33645)
     }
 
     @Test
@@ -127,7 +127,7 @@ class BuxferClientIntegrationTest {
                 .withBody(MockEngineSupport.UPLOAD_STATEMENT_OK_BODY)))
 
         val result = client.uploadStatement(10350, "csv-content")
-        assertThat(result.uploaded).isEqualTo(15)
+        assertThatJson(result.toString()).inPath("$.uploaded").isEqualTo(15)
     }
 
     @Test

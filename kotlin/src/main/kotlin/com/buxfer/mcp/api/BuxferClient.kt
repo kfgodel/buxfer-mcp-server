@@ -248,7 +248,7 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
             body
         }
 
-    suspend fun addTransaction(params: AddTransactionParams): Transaction = traced("POST", "/transaction_add") {
+    suspend fun addTransaction(params: AddTransactionParams): JsonObject = traced("POST", "/transaction_add") {
         val response = httpClient.post("${config.baseUrl}/transaction_add") {
             setBody(FormDataContent(Parameters.build {
                 append("token", requireToken())
@@ -262,10 +262,11 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
             }))
         }
         val body = responseBody(text(response))
-        buxferJson.decodeFromJsonElement(body)
+        validateSchema<Transaction>(body, "/transaction_add")
+        body
     }
 
-    suspend fun editTransaction(id: Int, params: AddTransactionParams): Transaction =
+    suspend fun editTransaction(id: Int, params: AddTransactionParams): JsonObject =
         traced("POST", "/transaction_edit") {
             val response = httpClient.post("${config.baseUrl}/transaction_edit") {
                 setBody(FormDataContent(Parameters.build {
@@ -281,7 +282,8 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
                 }))
             }
             val body = responseBody(text(response))
-            buxferJson.decodeFromJsonElement(body)
+            validateSchema<Transaction>(body, "/transaction_edit")
+            body
         }
 
     suspend fun deleteTransaction(id: Int): Unit = traced("POST", "/transaction_delete") {
@@ -294,7 +296,7 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
         responseBody(text(response))
     }
 
-    suspend fun uploadStatement(accountId: Int, statement: String, dateFormat: String? = null): UploadStatementResult =
+    suspend fun uploadStatement(accountId: Int, statement: String, dateFormat: String? = null): JsonObject =
         traced("POST", "/upload_statement") {
             // Redaction policy: never log the statement body — raw bank-statement text, often many KB.
             val response = httpClient.post("${config.baseUrl}/upload_statement") {
@@ -306,7 +308,8 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
                 }))
             }
             val body = responseBody(text(response))
-            buxferJson.decodeFromJsonElement(body)
+            validateSchema<UploadStatementResult>(body, "/upload_statement")
+            body
         }
 
     suspend fun getTags(): JsonArray = getValidatedList<List<Tag>>("/tags")

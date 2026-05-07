@@ -2,9 +2,7 @@ package com.buxfer.mcp.tools
 
 import com.buxfer.mcp.api.BuxferApiException
 import com.buxfer.mcp.api.BuxferClient
-import com.buxfer.mcp.api.models.Transaction
 import com.buxfer.mcp.api.models.TransactionFilters
-import com.buxfer.mcp.api.models.UploadStatementResult
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -48,23 +46,9 @@ class TransactionToolsTest {
         put("numTransactions", "5")
     }
 
-    // Write endpoints (addTransaction / editTransaction / uploadStatement) still return typed
-    // values from BuxferClient — they weren't part of the model-as-schema migration. The
-    // strict Transaction schema accepts these constructions because every required field is
-    // supplied.
-    private val addedTransaction = Transaction(
-        id = 33645, description = "Test Transaction", amount = 0.01, accountId = 10350,
-        accountName = "Test Account", date = "2026-04-26", tags = "", type = "expense", status = "cleared",
-        transactionType = "expense", expenseAmount = 0.01, tagNames = emptyList(),
-        isFutureDated = false, isPending = false
-    )
-
-    private val editedTransaction = Transaction(
-        id = 33645, description = "Test Transaction (edited)", amount = 0.01, accountId = 10350,
-        accountName = "Test Account", date = "2026-04-26", tags = "", type = "expense", status = "cleared",
-        transactionType = "expense", expenseAmount = 0.01, tagNames = emptyList(),
-        isFutureDated = false, isPending = false
-    )
+    // Write endpoints (addTransaction / editTransaction / uploadStatement) now return raw
+    // JsonObject too. Per-test inline fixtures (built via `buildJsonObject`) keep each
+    // test's mock body close to its assertions.
 
     @BeforeEach
     fun setUp() {
@@ -115,6 +99,9 @@ class TransactionToolsTest {
 
     @Test
     fun `addTransaction returns JSON of created transaction`() = runTest {
+        val addedTransaction = buildJsonObject {
+            put("id", 33645); put("description", "Test Transaction")
+        }
         coEvery { mockClient.addTransaction(any()) } returns addedTransaction
         val args: JsonObject = buildJsonObject {
             put("description", "Test Transaction")
@@ -132,6 +119,9 @@ class TransactionToolsTest {
 
     @Test
     fun `editTransaction returns JSON of updated transaction`() = runTest {
+        val editedTransaction = buildJsonObject {
+            put("id", 33645); put("description", "Test Transaction (edited)")
+        }
         coEvery { mockClient.editTransaction(33645, any()) } returns editedTransaction
         val args: JsonObject = buildJsonObject {
             put("id", 33645)
@@ -162,7 +152,10 @@ class TransactionToolsTest {
 
     @Test
     fun `uploadStatement returns uploaded count and balance`() = runTest {
-        coEvery { mockClient.uploadStatement(any(), any(), any()) } returns UploadStatementResult(uploaded = 15, balance = 1234.56)
+        val uploadResult = buildJsonObject {
+            put("uploaded", 15); put("balance", 1234.56)
+        }
+        coEvery { mockClient.uploadStatement(any(), any(), any()) } returns uploadResult
         val args: JsonObject = buildJsonObject {
             put("accountId", 10350)
             put("statement", "csv-content")
