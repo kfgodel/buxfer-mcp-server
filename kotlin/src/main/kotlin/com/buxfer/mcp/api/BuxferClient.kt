@@ -331,7 +331,15 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
 
     suspend fun getGroups(): List<Group> = getList("/groups", "groups")
 
-    suspend fun getContacts(): List<Contact> = getList("/contacts", "contacts")
+    suspend fun getContacts(): JsonArray = traced("GET", "/contacts") {
+        val response = httpClient.get("${config.baseUrl}/contacts") {
+            parameter("token", requireToken())
+        }
+        val body = responseBody(text(response))
+        val contacts = body["contacts"]?.jsonArray ?: JsonArray(emptyList())
+        validateSchema<List<Contact>>(contacts, "/contacts")
+        contacts
+    }
 
     suspend fun getLoans(): List<Loan> = getList("/loans", "loans")
 }

@@ -227,11 +227,10 @@ class BuxferClientTest {
     }
 
     @Test
-    fun `getContacts returns parsed Contact list`() = runTest {
+    fun `getContacts returns JsonArray of contact objects`() = runTest {
         val contacts = client.getContacts()
-        assertThat(contacts)
-            .hasSize(4)
-            .satisfies({ assertThat(it.email).isEqualTo("contact.1@example.com") }, atIndex(0))
+        assertThat(contacts).hasSize(4)
+        assertThatJson(contacts.toString()).inPath("$[0].email").isEqualTo("contact.1@example.com")
     }
 
     @Test

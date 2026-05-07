@@ -160,7 +160,7 @@ class BuxferClientIntegrationTest {
     fun `getContacts returns deserialized fixture data`() = runTest {
         val contacts = client.getContacts()
         assertThat(contacts).hasSize(4)
-        assertThat(contacts[0].id).isEqualTo(4436)
+        assertThatJson(contacts.toString()).inPath("$[0].id").isEqualTo(4436)
     }
 
     @Test
