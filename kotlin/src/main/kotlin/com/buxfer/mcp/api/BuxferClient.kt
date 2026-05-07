@@ -176,35 +176,15 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
         log.debug("login: token acquired")
     }
 
-    /**
-     * Authenticated GET that returns a list deserialized from the named JSON key
-     * inside the `response` envelope. Used by every resource list endpoint
-     * (`/accounts`, `/tags`, `/budgets`, …) which all share this exact shape.
-     *
-     * `inline reified` is required so each call site gets a concrete `T` for
-     * `decodeFromJsonElement`; the helper itself is `private` so inlining can
-     * still access `httpClient`, `config`, and `requireToken()`.
-     */
-    private suspend inline fun <reified T> getList(path: String, jsonKey: String): List<T> =
-        traced("GET", path) {
-            val response = httpClient.get("${config.baseUrl}$path") {
-                parameter("token", requireToken())
-            }
-            val body = responseBody(text(response))
-            buxferJson.decodeFromJsonElement(body[jsonKey] ?: JsonArray(emptyList()))
-        }
-
     suspend fun getAccounts(): JsonArray = getValidatedList<List<Account>>("/accounts")
 
     /**
      * Authenticated GET that returns the inner `JsonArray` named after the path's last
-     * segment, validating it against the schema [Schema] as a side effect (warning-only,
-     * see [validateSchema]). Used by every migrated list endpoint — `getAccounts`,
-     * `getTags`, `getContacts`, etc. Each call site picks the schema type; the helper
-     * handles auth, envelope inspection, and validation.
-     *
-     * Counterpart to the older [getList], which still serves the unmigrated endpoints
-     * (typed data-carrier flow). Once all list endpoints migrate, [getList] goes away.
+     * segment (e.g. `/accounts` → `body["accounts"]`), validating it against the schema
+     * [Schema] as a side effect (warning-only, see [validateSchema]). Used by every list
+     * endpoint with a homogeneous-array response: `getAccounts`, `getTags`, `getContacts`,
+     * `getBudgets`, `getReminders`, `getGroups`, `getLoans`. The `/transactions` endpoint
+     * has a wrapper response shape and uses its own inline path.
      *
      * `inline reified` is required so the call site keeps a concrete `Schema` for
      * [validateSchema]'s `decodeFromJsonElement<Schema>`; a non-reified helper would
@@ -240,7 +220,7 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
             }
     }
 
-    suspend fun getTransactions(filters: TransactionFilters = TransactionFilters()): TransactionsResult =
+    suspend fun getTransactions(filters: TransactionFilters = TransactionFilters()): JsonObject =
         traced("GET", "/transactions") {
             val response = httpClient.get("${config.baseUrl}/transactions") {
                 parameter("token", requireToken())
@@ -259,16 +239,13 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
                 filters.status?.let { parameter("status", it) }
                 filters.page?.let { parameter("page", it) }
             }
+            // /transactions has a wrapper response shape (transactions[] + numTransactions),
+            // so it returns a JsonObject — the only list endpoint that doesn't fit
+            // [getValidatedList]. The full inner response (envelope-stripped) is forwarded
+            // to Claude; the validator runs against the [TransactionsResult] schema.
             val body = responseBody(text(response))
-            val transactions: List<Transaction> = buxferJson.decodeFromJsonElement(
-                body["transactions"] ?: JsonArray(emptyList())
-            )
-            // Buxfer returns numTransactions as a string — decode manually rather than
-            // bend the model. Throw on missing/malformed so a real API change surfaces
-            // (instead of silently turning into "0 transactions").
-            val numTransactions = body["numTransactions"]?.jsonPrimitive?.content?.toIntOrNull()
-                ?: throw BuxferApiException("Missing or malformed 'numTransactions' in /transactions response")
-            TransactionsResult(transactions, numTransactions)
+            validateSchema<TransactionsResult>(body, "/transactions")
+            body
         }
 
     suspend fun addTransaction(params: AddTransactionParams): Transaction = traced("POST", "/transaction_add") {

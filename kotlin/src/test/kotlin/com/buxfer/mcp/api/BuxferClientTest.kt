@@ -88,32 +88,27 @@ class BuxferClientTest {
     }
 
     @Test
-    fun `getTransactions deserializes core Transaction scalars`() = runTest {
+    fun `getTransactions returns JsonObject with transactions array and numTransactions`() = runTest {
         val result = client.getTransactions()
-        assertThat(result.numTransactions).isEqualTo(5)
-        assertThat(result.transactions)
-            .hasSize(5)
-            .satisfies({
-                assertThat(it.id).isEqualTo(33040)
-                assertThat(it.type).isEqualTo("expense")
-                assertThat(it.transactionType).isEqualTo("expense")
-                assertThat(it.expenseAmount).isEqualTo(0.01)
-                assertThat(it.tagNames).isEmpty()
-                assertThat(it.isFutureDated).isFalse()
-                assertThat(it.isPending).isFalse()
-            }, atIndex(0))
+        val text = result.toString()
+        // numTransactions is forwarded as the wire string (Buxfer quotes it).
+        assertThatJson(text).inPath("$.numTransactions").isString().isEqualTo("5")
+        assertThatJson(text).inPath("$.transactions").isArray.hasSize(5)
+        assertThatJson(text).inPath("$.transactions[0].id").isEqualTo(33040)
+        assertThatJson(text).inPath("$.transactions[0].type").isEqualTo("expense")
+        assertThatJson(text).inPath("$.transactions[0].transactionType").isEqualTo("expense")
+        assertThatJson(text).inPath("$.transactions[0].expenseAmount").isEqualTo(0.01)
+        assertThatJson(text).inPath("$.transactions[0].isFutureDated").isEqualTo(false)
+        assertThatJson(text).inPath("$.transactions[0].isPending").isEqualTo(false)
     }
 
     @Test
-    fun `getTransactions deserializes nested transfer accounts`() = runTest {
+    fun `getTransactions returns JsonObject with nested transfer accounts on transfer records`() = runTest {
         val result = client.getTransactions()
-        assertThat(result.transactions)
-            .hasSize(5)
-            .satisfies({
-                assertThat(it.fromAccount?.id).isEqualTo(603017)
-                assertThat(it.fromAccount?.name).isEqualTo("Galicia ARS")
-                assertThat(it.toAccount?.id).isEqualTo(1100868)
-            }, atIndex(3))
+        val text = result.toString()
+        assertThatJson(text).inPath("$.transactions[3].fromAccount.id").isEqualTo(603017)
+        assertThatJson(text).inPath("$.transactions[3].fromAccount.name").isEqualTo("Galicia ARS")
+        assertThatJson(text).inPath("$.transactions[3].toAccount.id").isEqualTo(1100868)
     }
 
     @Test

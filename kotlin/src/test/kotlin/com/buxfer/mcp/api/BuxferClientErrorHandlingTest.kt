@@ -1,6 +1,7 @@
 package com.buxfer.mcp.api
 
 import com.buxfer.mcp.TestFixtureLoader
+import com.buxfer.mcp.api.models.AddTransactionParams
 import com.buxfer.mcp.testing.MockEngineSupport
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -29,27 +30,30 @@ class BuxferClientErrorHandlingTest {
 
     @Test
     fun `parse error surfaces field, type, and endpoint context`() = runTest {
-        // Transaction.id is the identity field — required, no default. If the API drops it,
-        // kotlinx.serialization throws SerializationException naming the missing field
-        // and type, and BuxferClient.traced wraps it as BuxferApiException with method+path
-        // context. Together that's enough to diagnose real API drift on sight.
+        // Transaction.id is the identity field — required, no default. The write endpoints
+        // (addTransaction / editTransaction / uploadStatement) still decode their responses
+        // into typed Kotlin models, so a payload missing required fields throws
+        // SerializationException, which `BuxferClient.traced` wraps as BuxferApiException
+        // with method+path context.
         //
-        // Note: this is the LAST endpoint exercising the strict-decode-as-throw path
-        // (`BuxferClient.getTransactions` still does `decodeFromJsonElement<List<Transaction>>`).
-        // Migrated endpoints use the non-throwing `validateSchema` path — their drift coverage
-        // lives in `getAccounts logs schema-drift warning on missing required field`. Once
-        // Transaction migrates, this test should be deleted (the path it covers will no
-        // longer exist).
+        // Note: all GET list endpoints (`/accounts`, `/tags`, `/budgets`, …) have migrated
+        // to the non-throwing `validateSchema` path — drift on those is covered by
+        // `getAccounts logs schema-drift warning on missing required field`. This test
+        // exercises the strict-decode-throw path that remains live for write endpoints.
         val engine = MockEngineSupport.newEngine(overrides = mapOf(
-            "/transactions" to """{"response":{"status":"OK","transactions":[{"description":"x"}],"numTransactions":"0"}}"""
+            "/transaction_add" to """{"response":{"name":"x"}}"""
         ))
         BuxferClient(BuxferClientConfig(engine = engine)).use { parseClient ->
             parseClient.login("user@example.com", "password")
 
-            val ex = assertThrows<BuxferApiException> { parseClient.getTransactions() }
+            val ex = assertThrows<BuxferApiException> {
+                parseClient.addTransaction(
+                    AddTransactionParams("Test", 0.01, 10350, "2026-04-26")
+                )
+            }
 
             assertThat(ex.message)
-                .contains("GET /transactions")
+                .contains("POST /transaction_add")
                 .contains("id")
                 .contains("Transaction")
             assertThat(ex.cause).isInstanceOf(kotlinx.serialization.SerializationException::class.java)

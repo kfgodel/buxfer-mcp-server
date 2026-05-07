@@ -77,9 +77,10 @@ class BuxferClientIntegrationTest {
     @Test
     fun `getTransactions with empty filters returns deserialized fixture data`() = runTest {
         val result = client.getTransactions()
-        assertThat(result.numTransactions).isEqualTo(5)
-        assertThat(result.transactions).hasSize(5)
-        assertThat(result.transactions[0].id).isEqualTo(33040)
+        val text = result.toString()
+        assertThatJson(text).inPath("$.numTransactions").isString().isEqualTo("5")
+        assertThatJson(text).inPath("$.transactions").isArray.hasSize(5)
+        assertThatJson(text).inPath("$.transactions[0].id").isEqualTo(33040)
     }
 
     @Test

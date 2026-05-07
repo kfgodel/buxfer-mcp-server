@@ -6,14 +6,15 @@ A Kotlin/JVM implementation of the Buxfer MCP server. Uses the official [MCP Kot
 
 ## Current improvement work
 
-A multi-session refactor is in flight. Phases 1–5 of [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) — AssertJ migration, Logback rolling-file logging, configurable base URL, server-bootstrap unit tests, integration tests with WireMock + ChannelTransport, and a bottom-up code review of every production layer (Models → API client → Tools → Server → Main) — are complete, including the post-review test-suite follow-through. The resilience follow-up's exception-wrapping piece is also done: `BuxferClient.traced` now wraps every Ktor / IO failure as `BuxferApiException` so the tool layer's contract stays clean. The model-layer challenge is in progress: the **Accounts pilot** landed — `BuxferClient.getAccounts()` returns `JsonArray` and validates the response shape against the `Account` schema as a side effect (`validateSchema` helper, dedicated `validatorJson` instance, drift logged as WARNING). **93 tests green.**
+A multi-session refactor is in flight. Phases 1–5 of [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) — AssertJ migration, Logback rolling-file logging, configurable base URL, server-bootstrap unit tests, integration tests with WireMock + ChannelTransport, and a bottom-up code review of every production layer (Models → API client → Tools → Server → Main) — are complete, including the post-review test-suite follow-through. The resilience follow-up's exception-wrapping piece is also done: `BuxferClient.traced` now wraps every Ktor / IO failure as `BuxferApiException`. The **model-layer challenge is complete** for all eight GET list endpoints (Accounts, Tags, Contacts, Loans, Budgets, Reminders, Groups, Transactions): each `BuxferClient.get*()` now returns the raw `JsonElement` Buxfer sent (envelope-stripped) and validates the shape via the `validateSchema` helper as a warning-only side effect. The data classes survive as drift-detection schemas using a three-tier nullability convention; the legacy `getList<T>` helper is gone. **93 tests green.**
 
 Remaining follow-ups:
 
 1. **Resilience policy decisions (deferred sub-items)** — see [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) §"Resilience to intermittent server failures". Retry on transient failures, re-login on 401 / expired token, per-call timeout overrides — all deliberately not implemented yet because Buxfer's docs are silent on token expiration semantics and we have no operational evidence that retry/timeout speculation would help. Revisit when real-world usage produces a concrete trigger.
-2. **Model-layer challenge — rollout queue** — see [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) §"Challenge the fixed-model-class approach". Pattern proven on Accounts; remaining endpoints (Tag, Contact, Loan as clean migrations; Transaction, Budget, Reminder need user discussion on field-conflict findings; Group / wrappers deferred on fixture gaps) follow the same shape. Per-type cross-reference notes captured under "Rollout queue".
+2. **Write endpoints still typed** — `addTransaction`, `editTransaction`, `uploadStatement` (POST endpoints) decode their responses into typed `Transaction` / `UploadStatementResult` and fail loudly on schema drift. Out of scope for the GET-list migration; revisit if drift behavior becomes painful (the same model-as-schema pattern would apply).
+3. **Group fixture gap** — `groups.json` is empty (`[]`), so the Group/Member schemas are fully Tier 3 unverified. Tighten when a real fixture is captured.
 
-Item 2 is the active in-flight work; item 1 is wait-for-signal.
+All three are wait-for-signal — no in-flight work.
 
 ## MCP Kotlin SDK Reference
 

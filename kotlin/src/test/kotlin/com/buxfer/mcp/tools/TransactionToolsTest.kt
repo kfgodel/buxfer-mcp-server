@@ -2,19 +2,21 @@ package com.buxfer.mcp.tools
 
 import com.buxfer.mcp.api.BuxferApiException
 import com.buxfer.mcp.api.BuxferClient
-import com.buxfer.mcp.api.models.AccountRef
 import com.buxfer.mcp.api.models.Transaction
 import com.buxfer.mcp.api.models.TransactionFilters
-import com.buxfer.mcp.api.models.TransactionsResult
 import com.buxfer.mcp.api.models.UploadStatementResult
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
 import net.javacrumbs.jsonunit.assertj.assertThatJson
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -25,31 +27,31 @@ class TransactionToolsTest {
     private val mockClient = mockk<BuxferClient>()
     private lateinit var tools: TransactionTools
 
-    private val fixtureTransactions = listOf(
-        Transaction(id = 33040, description = "Transaction 33040", amount = 0.01, accountId = 10350,
-            accountName = "Test Account", date = "2026-04-26", tags = "", type = "expense", status = "cleared",
-            transactionType = "expense", expenseAmount = 0.01, tagNames = emptyList(),
-            isFutureDated = false, isPending = false),
-        Transaction(id = 33026, description = "Transaction 33026", amount = 0.01, accountId = 10350,
-            accountName = "Test Account", date = "2026-04-26", tags = "", type = "expense", status = "cleared",
-            transactionType = "expense", expenseAmount = 0.01, tagNames = emptyList(),
-            isFutureDated = false, isPending = false),
-        Transaction(id = 39962, description = "Transaction 39962", amount = 6.49, accountId = 12768,
-            accountName = "Test Account", date = "2026-04-25", tags = "Tag 1", type = "expense", status = "pending",
-            transactionType = "expense", expenseAmount = 9024.1, tagNames = listOf("Tag 1"),
-            isFutureDated = false, isPending = true),
-        Transaction(id = 22654, description = "Transaction 22654", amount = 50000.0, accountId = null,
-            accountName = "Test Account", date = "2026-04-24", tags = "", type = "transfer", status = "cleared",
-            transactionType = "transfer", expenseAmount = 0.0, tagNames = emptyList(),
-            isFutureDated = false, isPending = false,
-            fromAccount = AccountRef(id = 603017, name = "Galicia ARS"),
-            toAccount = AccountRef(id = 1100868, name = "MercadoPago")),
-        Transaction(id = 22653, description = "Transaction 22653", amount = 4.1, accountId = 18027,
-            accountName = "Test Account", date = "2026-04-24", tags = "Tag 1", type = "income", status = "cleared",
-            transactionType = "income", expenseAmount = -4.1, tagNames = listOf("Tag 1"),
-            isFutureDated = false, isPending = false)
-    )
+    // BuxferClient.getTransactions() now returns the raw JsonObject Buxfer's response carries
+    // (envelope-stripped). Build the test fixture to mirror that shape: a `transactions` array
+    // plus the wire-format `numTransactions` (a string, not an int — see TransactionsResult).
+    private val fixtureTransactionsBody: JsonObject = buildJsonObject {
+        putJsonArray("transactions") {
+            addJsonObject {
+                put("id", 33040); put("type", "expense"); put("transactionType", "expense")
+                put("isFutureDated", false); put("isPending", false)
+            }
+            addJsonObject { put("id", 33026) }
+            addJsonObject { put("id", 39962) }
+            addJsonObject {
+                put("id", 22654)
+                putJsonObject("fromAccount") { put("id", 603017); put("name", "Galicia ARS") }
+                putJsonObject("toAccount") { put("id", 1100868); put("name", "MercadoPago") }
+            }
+            addJsonObject { put("id", 22653) }
+        }
+        put("numTransactions", "5")
+    }
 
+    // Write endpoints (addTransaction / editTransaction / uploadStatement) still return typed
+    // values from BuxferClient — they weren't part of the model-as-schema migration. The
+    // strict Transaction schema accepts these constructions because every required field is
+    // supplied.
     private val addedTransaction = Transaction(
         id = 33645, description = "Test Transaction", amount = 0.01, accountId = 10350,
         accountName = "Test Account", date = "2026-04-26", tags = "", type = "expense", status = "cleared",
@@ -71,21 +73,19 @@ class TransactionToolsTest {
 
     @Test
     fun `listTransactions returns JSON with transactions and count`() = runTest {
-        coEvery { mockClient.getTransactions(any()) } returns TransactionsResult(fixtureTransactions, 5)
+        coEvery { mockClient.getTransactions(any()) } returns fixtureTransactionsBody
 
         val result = tools.listTransactions(null)
 
         val text = (result.content[0] as TextContent).text
         assertThatJson(text).inPath("$.transactions").isArray.hasSize(5)
-        assertThatJson(text).inPath("$.numTransactions").isEqualTo(5)
+        // numTransactions is forwarded as the wire string (Buxfer quotes it).
+        assertThatJson(text).inPath("$.numTransactions").isString().isEqualTo("5")
         assertThatJson(text).inPath("$.transactions[0].id").isEqualTo(33040)
         assertThatJson(text).inPath("$.transactions[0].type").isEqualTo("expense")
         assertThatJson(text).inPath("$.transactions[0].transactionType").isEqualTo("expense")
         assertThatJson(text).inPath("$.transactions[0].isFutureDated").isEqualTo(false)
         assertThatJson(text).inPath("$.transactions[0].isPending").isEqualTo(false)
-        // tagNames is omitted when empty (Json { encodeDefaults = false }) — keeps the
-        // JSON Claude sees free of "field": [] noise.
-        assertThatJson(text).inPath("$.transactions[0].tagNames").isAbsent()
         // transfer has fromAccount/toAccount
         assertThatJson(text).inPath("$.transactions[3].fromAccount.id").isEqualTo(603017)
         assertThatJson(text).inPath("$.transactions[3].toAccount.id").isEqualTo(1100868)
@@ -93,7 +93,11 @@ class TransactionToolsTest {
 
     @Test
     fun `listTransactions with filters passes them to client`() = runTest {
-        coEvery { mockClient.getTransactions(any()) } returns TransactionsResult(emptyList(), 0)
+        val emptyBody = buildJsonObject {
+            put("transactions", JsonArray(emptyList()))
+            put("numTransactions", "0")
+        }
+        coEvery { mockClient.getTransactions(any()) } returns emptyBody
         val args: JsonObject = buildJsonObject {
             put("accountId", 10350)
             put("startDate", "2026-04-01")
