@@ -2,11 +2,13 @@ package com.buxfer.mcp.tools
 
 import com.buxfer.mcp.api.BuxferApiException
 import com.buxfer.mcp.api.BuxferClient
-import com.buxfer.mcp.api.models.Loan
 import io.mockk.coEvery
 import io.mockk.mockk
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.addJsonObject
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.put
 import net.javacrumbs.jsonunit.assertj.assertThatJson
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -24,11 +26,12 @@ class LoanToolsTest {
 
     @Test
     fun `listLoans returns JSON array of loans`() = runTest {
-        val loans = listOf(
-            Loan(entity = "Test Entity 1", type = "contact", balance = 5000.0, description = "Loan 1"),
-            Loan(entity = "Test Entity 2", type = "contact", balance = 103547.0, description = "Loan 2"),
-            Loan(entity = "Test Entity 3", type = "contact", balance = 49937.71, description = "Loan 3")
-        )
+        // BuxferClient.getLoans() now returns the raw JsonArray; build the test fixture to match.
+        val loans = buildJsonArray {
+            addJsonObject { put("entity", "Test Entity 1"); put("type", "contact"); put("balance", 5000.0); put("description", "Loan 1") }
+            addJsonObject { put("entity", "Test Entity 2"); put("type", "contact"); put("balance", 103547.0); put("description", "Loan 2") }
+            addJsonObject { put("entity", "Test Entity 3"); put("type", "contact"); put("balance", 49937.71); put("description", "Loan 3") }
+        }
         coEvery { mockClient.getLoans() } returns loans
 
         val result = tools.listLoans()

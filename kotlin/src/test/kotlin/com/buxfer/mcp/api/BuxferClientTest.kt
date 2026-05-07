@@ -234,11 +234,10 @@ class BuxferClientTest {
     }
 
     @Test
-    fun `getLoans returns parsed Loan list`() = runTest {
+    fun `getLoans returns JsonArray of loan objects`() = runTest {
         val loans = client.getLoans()
-        assertThat(loans)
-            .hasSize(3)
-            .satisfies({ assertThat(it.type).isEqualTo("contact") }, atIndex(0))
+        assertThat(loans).hasSize(3)
+        assertThatJson(loans.toString()).inPath("$[0].type").isEqualTo("contact")
     }
 
     @Test

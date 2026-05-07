@@ -342,5 +342,5 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
 
     suspend fun getContacts(): JsonArray = getValidatedList<List<Contact>>("/contacts")
 
-    suspend fun getLoans(): List<Loan> = getList("/loans", "loans")
+    suspend fun getLoans(): JsonArray = getValidatedList<List<Loan>>("/loans")
 }
