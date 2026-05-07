@@ -29,29 +29,29 @@ class BuxferClientErrorHandlingTest {
 
     @Test
     fun `parse error surfaces field, type, and endpoint context`() = runTest {
-        // Group.id is the identity field — required, no default. If the API drops it,
+        // Transaction.id is the identity field — required, no default. If the API drops it,
         // kotlinx.serialization throws SerializationException naming the missing field
         // and type, and BuxferClient.traced wraps it as BuxferApiException with method+path
         // context. Together that's enough to diagnose real API drift on sight.
         //
-        // Note: this exercises the strict-decode-as-throw path used by the few unmigrated
-        // endpoints still going through `getList`. Migrated endpoints use the non-throwing
-        // `validateSchema` path — their drift coverage lives in
-        // `getAccounts logs schema-drift warning on missing required field`. Once Groups
-        // and Transactions migrate, this test should be deleted (the path it covers will
-        // no longer exist).
+        // Note: this is the LAST endpoint exercising the strict-decode-as-throw path
+        // (`BuxferClient.getTransactions` still does `decodeFromJsonElement<List<Transaction>>`).
+        // Migrated endpoints use the non-throwing `validateSchema` path — their drift coverage
+        // lives in `getAccounts logs schema-drift warning on missing required field`. Once
+        // Transaction migrates, this test should be deleted (the path it covers will no
+        // longer exist).
         val engine = MockEngineSupport.newEngine(overrides = mapOf(
-            "/groups" to """{"response":{"status":"OK","groups":[{"name":"x"}]}}"""
+            "/transactions" to """{"response":{"status":"OK","transactions":[{"description":"x"}],"numTransactions":"0"}}"""
         ))
         BuxferClient(BuxferClientConfig(engine = engine)).use { parseClient ->
             parseClient.login("user@example.com", "password")
 
-            val ex = assertThrows<BuxferApiException> { parseClient.getGroups() }
+            val ex = assertThrows<BuxferApiException> { parseClient.getTransactions() }
 
             assertThat(ex.message)
-                .contains("GET /groups")
+                .contains("GET /transactions")
                 .contains("id")
-                .contains("Group")
+                .contains("Transaction")
             assertThat(ex.cause).isInstanceOf(kotlinx.serialization.SerializationException::class.java)
         }
     }

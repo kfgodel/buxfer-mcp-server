@@ -215,7 +215,7 @@ class BuxferClientTest {
     }
 
     @Test
-    fun `getGroups returns empty list from fixture`() = runTest {
+    fun `getGroups returns empty JsonArray from fixture`() = runTest {
         val groups = client.getGroups()
         assertThat(groups).isEmpty()
     }

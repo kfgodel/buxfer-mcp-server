@@ -6,6 +6,7 @@ import io.mockk.coEvery
 import io.mockk.mockk
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonArray
 import net.javacrumbs.jsonunit.assertj.assertThatJson
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -23,7 +24,7 @@ class GroupToolsTest {
 
     @Test
     fun `listGroups returns empty JSON array from fixture`() = runTest {
-        coEvery { mockClient.getGroups() } returns emptyList()
+        coEvery { mockClient.getGroups() } returns JsonArray(emptyList())
 
         val result = tools.listGroups()
 
