@@ -29,28 +29,28 @@ class BuxferClientErrorHandlingTest {
 
     @Test
     fun `parse error surfaces field, type, and endpoint context`() = runTest {
-        // Budget.id is the identity field — required, no default. If the API drops it,
+        // Reminder.id is the identity field — required, no default. If the API drops it,
         // kotlinx.serialization throws SerializationException naming the missing field
         // and type, and BuxferClient.traced wraps it as BuxferApiException with method+path
         // context. Together that's enough to diagnose real API drift on sight.
         //
         // Note: this exercises the strict-decode-as-throw path used by all unmigrated
-        // endpoints (the ones still going through `getList`). Migrated endpoints
-        // (`getAccounts`, `getTags`) use the non-throwing `validateSchema` path — their
-        // drift coverage lives in their respective `logs schema-drift warning` tests.
+        // endpoints (the ones still going through `getList`). Migrated endpoints use the
+        // non-throwing `validateSchema` path — their drift coverage lives in
+        // `getAccounts logs schema-drift warning on missing required field`.
         // As more endpoints migrate, repoint this test to whichever still uses `getList`.
         val engine = MockEngineSupport.newEngine(overrides = mapOf(
-            "/budgets" to """{"response":{"status":"OK","budgets":[{"name":"x"}]}}"""
+            "/reminders" to """{"response":{"status":"OK","reminders":[{"name":"x"}]}}"""
         ))
         BuxferClient(BuxferClientConfig(engine = engine)).use { parseClient ->
             parseClient.login("user@example.com", "password")
 
-            val ex = assertThrows<BuxferApiException> { parseClient.getBudgets() }
+            val ex = assertThrows<BuxferApiException> { parseClient.getReminders() }
 
             assertThat(ex.message)
-                .contains("GET /budgets")
+                .contains("GET /reminders")
                 .contains("id")
-                .contains("Budget")
+                .contains("Reminder")
             assertThat(ex.cause).isInstanceOf(kotlinx.serialization.SerializationException::class.java)
         }
     }

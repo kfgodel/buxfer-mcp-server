@@ -164,36 +164,32 @@ class BuxferClientTest {
     }
 
     @Test
-    fun `getBudgets deserializes Budget scalar fields`() = runTest {
+    fun `getBudgets returns JsonArray with Budget scalar fields`() = runTest {
         val budgets = client.getBudgets()
-        assertThat(budgets)
-            .hasSize(2)
-            .satisfies({
-                assertThat(it.id).isEqualTo(58182)
-                assertThat(it.name).isEqualTo("Budget 58182")
-                assertThat(it.spent).isEqualTo(946905.21)
-                assertThat(it.balance).isEqualTo(-896905.21)
-                assertThat(it.editMode).isEqualTo("schedule_all")
-                assertThat(it.periodSize).isEqualTo(1)
-                assertThat(it.startDate).isEqualTo("2022-03-01")
-                assertThat(it.stopDate).isNull()
-                assertThat(it.budgetId).isEqualTo(58182)
-                assertThat(it.type).isEqualTo(1)
-                assertThat(it.isRolledOver).isEqualTo(0)
-                assertThat(it.eventId).isEqualTo(34183)
-            }, atIndex(0))
+        assertThat(budgets).hasSize(2)
+        val text = budgets.toString()
+        assertThatJson(text).inPath("$[0].id").isEqualTo(58182)
+        assertThatJson(text).inPath("$[0].name").isEqualTo("Budget 58182")
+        assertThatJson(text).inPath("$[0].spent").isEqualTo(946905.21)
+        assertThatJson(text).inPath("$[0].balance").isEqualTo(-896905.21)
+        assertThatJson(text).inPath("$[0].editMode").isEqualTo("schedule_all")
+        assertThatJson(text).inPath("$[0].periodSize").isEqualTo(1)
+        assertThatJson(text).inPath("$[0].startDate").isEqualTo("2022-03-01")
+        assertThatJson(text).inPath("$[0].stopDate").isNull()
+        assertThatJson(text).inPath("$[0].budgetId").isEqualTo(58182)
+        assertThatJson(text).inPath("$[0].type").isEqualTo(1)
+        assertThatJson(text).inPath("$[0].isRolledOver").isEqualTo(0)
+        assertThatJson(text).inPath("$[0].eventId").isEqualTo(34183)
     }
 
     @Test
-    fun `getBudgets deserializes nested Budget tag reference`() = runTest {
+    fun `getBudgets returns JsonArray with nested Budget tag reference`() = runTest {
         val budgets = client.getBudgets()
-        assertThat(budgets)
-            .hasSize(2)
-            .satisfies({
-                assertThat(it.tagId).isEqualTo(57904)
-                assertThat(it.tag?.id).isEqualTo(57904)
-                assertThat(it.tag?.name).isEqualTo("Budget Tag 57904")
-            }, atIndex(0))
+        assertThat(budgets).hasSize(2)
+        val text = budgets.toString()
+        assertThatJson(text).inPath("$[0].tagId").isEqualTo(57904)
+        assertThatJson(text).inPath("$[0].tag.id").isEqualTo(57904)
+        assertThatJson(text).inPath("$[0].tag.name").isEqualTo("Budget Tag 57904")
     }
 
     @Test

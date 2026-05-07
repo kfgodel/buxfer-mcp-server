@@ -8,9 +8,10 @@ import kotlinx.serialization.Serializable
  * path forwards the raw `JsonArray` to Claude.
  *
  * Field nullability reflects what every fixture record contains: `id` / `name` / `relativeName`
- * are present on all 3 captured records (`shared/test-fixtures/wiremock/__files/tags.json`).
- * `parentId` is documented as nullable in the Buxfer API spec and the fixture has both
- * null and Int values, so it stays nullable.
+ * are required and non-null on all 3 captured records (`shared/test-fixtures/wiremock/__files/tags.json`).
+ * `parentId` is declared `Int?` with no default — the JSON key is always present (3/3 records)
+ * but the value is sometimes `null` and sometimes an `Int`. Absence of the key would be drift,
+ * surfaced as a `validateSchema` warning.
  *
  * Tag is also embedded inside `Budget.tag` and `Reminder.tags`. Tightening here means
  * those still-unmigrated endpoints' strict decode (via `getList`, which uses the production
@@ -23,5 +24,5 @@ data class Tag(
     val id: Int,
     val name: String,
     val relativeName: String,
-    val parentId: Int? = null,
+    val parentId: Int?,
 )

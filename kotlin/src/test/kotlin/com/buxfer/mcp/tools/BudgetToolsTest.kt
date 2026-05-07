@@ -2,12 +2,14 @@ package com.buxfer.mcp.tools
 
 import com.buxfer.mcp.api.BuxferApiException
 import com.buxfer.mcp.api.BuxferClient
-import com.buxfer.mcp.api.models.Budget
-import com.buxfer.mcp.api.models.Tag
 import io.mockk.coEvery
 import io.mockk.mockk
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.addJsonObject
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonObject
 import net.javacrumbs.jsonunit.assertj.assertThatJson
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -25,15 +27,24 @@ class BudgetToolsTest {
 
     @Test
     fun `listBudgets returns JSON array of budgets`() = runTest {
-        val tag = Tag(id = 57904, name = "Budget Tag 57904", relativeName = "budget tag 57904", parentId = 58046)
-        val budgets = listOf(
-            Budget(id = 58182, name = "Budget 58182", limit = 50000.0, spent = 946905.21, balance = -896905.21,
-                period = "Apr", periodUnit = "month", editMode = "schedule_all", periodSize = 1,
-                startDate = "2022-03-01", stopDate = null, budgetId = 58182, type = 1,
-                tagId = 57904, tag = tag, isRolledOver = 0, eventId = 34183),
-            Budget(id = 58183, name = "Budget 58183", limit = 40000.0, spent = 65700.0, balance = -25700.0,
-                period = "Apr", periodUnit = "month")
-        )
+        // BuxferClient.getBudgets() now returns the raw JsonArray; build the test fixture to match.
+        // The tool layer doesn't run validation, so a partial second record is fine here.
+        val budgets = buildJsonArray {
+            addJsonObject {
+                put("id", 58182); put("name", "Budget 58182"); put("limit", 50000.0)
+                put("spent", 946905.21); put("balance", -896905.21)
+                put("period", "Apr"); put("periodUnit", "month"); put("editMode", "schedule_all")
+                put("periodSize", 1); put("startDate", "2022-03-01")
+                put("budgetId", 58182); put("type", 1)
+                put("tagId", 57904)
+                putJsonObject("tag") {
+                    put("id", 57904); put("name", "Budget Tag 57904")
+                    put("relativeName", "budget tag 57904"); put("parentId", 58046)
+                }
+                put("isRolledOver", 0); put("eventId", 34183)
+            }
+            addJsonObject { put("id", 58183) }  // partial; only used for hasSize(2)
+        }
         coEvery { mockClient.getBudgets() } returns budgets
 
         val result = tools.listBudgets()

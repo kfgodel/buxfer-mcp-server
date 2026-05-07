@@ -304,12 +304,22 @@ This is an MCP server: Buxfer JSON in, JSON out to Claude. **Claude is the data 
 Drop response classes as **data carriers** but keep them as **drift-detection schemas**:
 - `BuxferClient` returns the raw `JsonElement` (typically `JsonArray` or `JsonObject`) extracted from Buxfer's `response.<key>`. Tool layer forwards via `mcpTool` — `buxferJson.encodeToString(jsonElement)` produces the same wire shape Claude saw before.
 - A side-effect `validateSchema<T>(json, path)` attempts a strict `decodeFromJsonElement<T>` using a dedicated `validatorJson` (`ignoreUnknownKeys = false`). On `SerializationException` it logs a WARNING — never throws. Production data flow is unaffected; the operator gets a precise drift signal (missing field, wrong type, unexpected key).
-- Schema fields are tightened to non-nullable wherever fixture evidence shows they are always present, so the warning fires only on real drift.
+- Schema fields use a **three-tier nullability convention** that maps cleanly to kotlinx.serialization's deserialization rules. Each tier corresponds to a different drift signal:
+
+  | Declaration                  | Key required in JSON? | Value can be `null`? | Use for                                                        |
+  |------------------------------|-----------------------|----------------------|----------------------------------------------------------------|
+  | `field: Type`                | yes                   | no                   | Fixture-always-present with non-null value (the common case).  |
+  | `field: Type?` *(no default)*| **yes**               | yes                  | Key always present in fixture, value sometimes `null`.         |
+  | `field: Type? = null`        | no                    | yes                  | Spec-only / forward-compat — key may be absent entirely.       |
+
+  Rationale: a missing default makes the field required by deserialization (absence triggers `MissingFieldException`). The type's `?` is independent — it controls whether `null` is a valid *value*. Combining the two lets us encode "the API always sends this key, sometimes with a null value" as a distinct signal from "the API may or may not send this key at all" — both of which today's fixtures+spec evidence supports for different fields.
+
+- Spec-only fields (documented in the Buxfer API spec but absent from every captured fixture) land in the third tier (`Type? = null`). The validator (`ignoreUnknownKeys = false`) won't fire warnings on their absence, but if Buxfer ever starts sending them, the schema accepts the new fields gracefully — keeping the schema forward-compatible and serving as documentation of the spec contract.
 - Request DTOs (`AddTransactionParams`, `TransactionFilters`) keep their typed shape — they have a real Kotlin-args-to-wire role.
 
 #### Pilot outcome (2026-05-07) — Accounts
 
-- `Account.kt` tightened: all 5 fields non-nullable (`id`, `name`, `bank`, `balance`, `currency`). `lastSynced` (in spec but absent from every fixture) intentionally skipped.
+- `Account.kt` tightened: 5 fixture-always-present fields non-nullable (`id`, `name`, `bank`, `balance`, `currency`). Spec-only `lastSynced` added as nullable per the spec-forward-compat policy (initially skipped in the pilot, added retroactively when Budget revealed the same kind of spec/fixture divergence and the policy crystallised).
 - `BuxferClient.getAccounts()` now returns `JsonArray`. `validateSchema<List<Account>>` runs as a side effect.
 - `AccountTools.listAccounts` body unchanged (the existing `mcpTool` one-liner forwards `JsonArray` natively).
 - Tests: `getAccounts returns parsed Account list` rewritten to `getAccounts returns JsonArray of account objects`; new `getAccounts logs schema-drift warning on missing required field` validates the Logback warning fires on a malformed fixture. **93 tests green.**
@@ -323,7 +333,7 @@ The `validateSchema` helper is in place; each remaining endpoint follows the sam
 - **Contact** — **Done (2026-05-07).** All 4 fields (`id`, `name`, `email`, `balance`) tightened to non-nullable. `BuxferClient.getContacts()` returns `JsonArray` and validates via `validateSchema<List<Contact>>`.
 - **Loan** — **Done (2026-05-07).** All 4 fields (`entity`, `type`, `balance`, `description`) tightened to non-nullable. `BuxferClient.getLoans()` now uses the shared `getValidatedList<List<Loan>>("/loans")` helper.
 - **Transaction** — biggest scope. Fixture rich; many fields not in spec (`transactionType`, `expenseAmount`, `tagNames`, `isFutureDated`, `isPending`). Conditional fields (`fromAccount`/`toAccount` only on transfers); `accountId` legitimately nullable on transfers. Mystery: `transactionType` vs `type` — possible duplicate, worth user discussion.
-- **Budget** — biggest spec/fixture divergence. Spec has `remaining` + `tags[]` + `keywords[]`; fixture has `balance` + `spent` + `tagId` + `tag` (object) and many fixture-only fields. Fixture is closer to ground truth. Needs explicit user discussion.
+- **Budget** — **Done (2026-05-07).** 16 fixture-always-present fields tightened to non-nullable; `stopDate` stays nullable (always present in the fixture but always with value `null`); spec-only `remaining` / `currentPeriod` / `tags[]` / `keywords[]` added as nullable per the spec-forward-compat policy. `budgetId` and `id` are duplicates in the fixture and both kept required. `tag` is now non-nullable, leaning on the already-tightened `Tag` schema. `BuxferClient.getBudgets()` uses `getValidatedList<List<Budget>>("/budgets")`. Parse-error test repointed from `/budgets` to `/reminders`.
 - **Reminder** — similar to Budget. Spec talks about `period`, fixture has `periodUnit` + `periodSize`. Mystery: `transactionType` (int) alongside `type` (string).
 - **Group / Member** — fixture is empty (`[]`). Can't infer schema from fixture. Defer until a real fixture is captured, or document decisions from spec only.
 - **AccountRef** (nested in Transaction transfer fields) — `id` always, `name` always when present.

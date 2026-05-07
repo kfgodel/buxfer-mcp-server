@@ -140,7 +140,7 @@ class BuxferClientIntegrationTest {
     fun `getBudgets returns deserialized fixture data`() = runTest {
         val budgets = client.getBudgets()
         assertThat(budgets).hasSize(2)
-        assertThat(budgets[0].id).isEqualTo(58182)
+        assertThatJson(budgets.toString()).inPath("$[0].id").isEqualTo(58182)
     }
 
     @Test
