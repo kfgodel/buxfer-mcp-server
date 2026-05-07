@@ -6,15 +6,14 @@ A Kotlin/JVM implementation of the Buxfer MCP server. Uses the official [MCP Kot
 
 ## Current improvement work
 
-A multi-session refactor is in flight. Phases 1–5 of [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) — AssertJ migration, Logback rolling-file logging, configurable base URL, server-bootstrap unit tests, integration tests with WireMock + ChannelTransport, and a bottom-up code review of every production layer (Models → API client → Tools → Server → Main) — are complete. **All 59 tests green.**
+A multi-session refactor is in flight. Phases 1–5 of [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) — AssertJ migration, Logback rolling-file logging, configurable base URL, server-bootstrap unit tests, integration tests with WireMock + ChannelTransport, and a bottom-up code review of every production layer (Models → API client → Tools → Server → Main) — are complete, including the post-review test-suite follow-through. **89 tests green.**
 
-Three independent follow-ups remain:
+Two independent follow-ups remain:
 
 1. **Resilience to intermittent server failures** — see [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) §"Resilience to intermittent server failures". `BuxferClient` retry on transient failures, token refresh on 401, wrapping `IOException` / `HttpRequestTimeoutException` from Ktor as `BuxferApiException`.
 2. **Challenge the fixed-model-class approach** — see [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) §"Challenge the fixed-model-class approach". Phase 1 inventory found that no response-model field is read programmatically. Should we drop the 14 typed response models in favor of a `JsonObject` pass-through, since Claude (the consumer) parses JSON itself?
-3. **Test-suite gaps and cleanups** — see [TEST_REVIEW.md](TEST_REVIEW.md). Bottom-up review of the test suite, ranked by severity. Highest-value items: direct tests for `JsonObjectExtensions` and `mcpTool` helpers; coverage for `TransactionTools` arg-validation paths.
 
-Items are independent — pick any to start. After all three close, Phase 5 is genuinely done.
+Items are independent — pick either to start.
 
 ## MCP Kotlin SDK Reference
 

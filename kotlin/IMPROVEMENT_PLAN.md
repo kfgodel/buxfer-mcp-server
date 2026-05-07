@@ -260,9 +260,25 @@ Phase 4b notes:
 
 ---
 
-## Test review — separate document
+## Resuming review (2026-05-07)
 
-Phase 5's bottom-up review produced a dedicated test-side report: [TEST_REVIEW.md](TEST_REVIEW.md). It catalogs gaps and cleanups in the test suite, ranked by severity, with a recommended order for the next session. Address before considering Phase 5 closed.
+**Done:** Phase 5 production-side walkthrough + the post-review test-suite follow-through. **89 tests green.**
+
+Phase 5 production notes:
+- Models slimmed to "identity-only required, everything else nullable / `emptyList()` default" — drift-tolerant decode via `Json { ignoreUnknownKeys = true; encodeDefaults = false }`.
+- `BuxferApiException` unified as the single error type; `BuxferClient.traced` wraps `SerializationException` with method+path context.
+- `mcpTool` helper extracted in [src/main/kotlin/com/buxfer/mcp/tools/McpTool.kt](src/main/kotlin/com/buxfer/mcp/tools/McpTool.kt) — wraps log + encode + isError for the simple list tools.
+- `JsonObjectExtensions.kt` exposes `requireInt`/`requireDouble`/`requireString` (throw on missing) and `optString` (null on missing) — replaces silent-zero antipattern in `TransactionTools`.
+
+Test-suite follow-through (closed as part of this resume):
+- New direct-coverage suites: `JsonObjectExtensionsTest` (15 cases pinning the contract message), `McpToolTest` (5 cases), `BuxferClientConfigTest` (4 cases), `BuxferClientErrorHandlingTest` (3 tests extracted from `BuxferClientTest` to keep the latter under ~250 lines).
+- Integration-test setup helper extracted (`launchMcpClient()` in [BuxferMcpServerIntegrationTest](src/test/kotlin/com/buxfer/mcp/BuxferMcpServerIntegrationTest.kt)).
+- Shared `MockEngineSupport` utility ([src/test/kotlin/com/buxfer/mcp/testing/MockEngineSupport.kt](src/test/kotlin/com/buxfer/mcp/testing/MockEngineSupport.kt)) — data-driven endpoint→fixture map, plus `UPLOAD_STATEMENT_OK_BODY` constant shared between MockEngine and WireMock test tiers.
+- Two items considered and deliberately NOT applied: deduping per-tool `client throws` tests (kept the per-tool pin) and trimming verbose model fixtures (kept realistic data).
+
+**Next:** the two follow-ups below — resilience and the model-layer challenge.
+
+---
 
 ## Follow-ups identified during Phase 5 review
 
