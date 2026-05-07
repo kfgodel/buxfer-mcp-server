@@ -2,11 +2,13 @@ package com.buxfer.mcp.tools
 
 import com.buxfer.mcp.api.BuxferApiException
 import com.buxfer.mcp.api.BuxferClient
-import com.buxfer.mcp.api.models.Account
 import io.mockk.coEvery
 import io.mockk.mockk
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.addJsonObject
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.put
 import net.javacrumbs.jsonunit.assertj.assertThatJson
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -17,13 +19,16 @@ class AccountToolsTest {
     private val mockClient = mockk<BuxferClient>()
     private lateinit var tools: AccountTools
 
-    private val fixtureAccounts = listOf(
-        Account(id = 10350, name = "Test Account 10350", bank = "Test Bank", balance = 360.01, currency = "ARS"),
-        Account(id = 53367, name = "Test Account 53367", bank = "Test Bank", balance = 420.01, currency = "ARS"),
-        Account(id = 18803, name = "Test Account 18803", bank = "Test Bank", balance = 821.01, currency = "USD"),
-        Account(id = 18804, name = "Test Account 18804", bank = "Test Bank", balance = 822.01, currency = "EUR"),
-        Account(id = 18027, name = "Test Account 18027", bank = "Test Bank", balance = 45.01, currency = "ARS")
-    )
+    // BuxferClient.getAccounts() now returns the raw JsonArray Buxfer's response carries — the
+    // tool layer no longer holds typed Account data. Build the test fixture directly as a
+    // JsonArray to mirror that shape.
+    private val fixtureAccounts = buildJsonArray {
+        addJsonObject { put("id", 10350); put("name", "Test Account 10350"); put("bank", "Test Bank"); put("balance", 360.01); put("currency", "ARS") }
+        addJsonObject { put("id", 53367); put("name", "Test Account 53367"); put("bank", "Test Bank"); put("balance", 420.01); put("currency", "ARS") }
+        addJsonObject { put("id", 18803); put("name", "Test Account 18803"); put("bank", "Test Bank"); put("balance", 821.01); put("currency", "USD") }
+        addJsonObject { put("id", 18804); put("name", "Test Account 18804"); put("bank", "Test Bank"); put("balance", 822.01); put("currency", "EUR") }
+        addJsonObject { put("id", 18027); put("name", "Test Account 18027"); put("bank", "Test Bank"); put("balance", 45.01); put("currency", "ARS") }
+    }
 
     @BeforeEach
     fun setUp() {

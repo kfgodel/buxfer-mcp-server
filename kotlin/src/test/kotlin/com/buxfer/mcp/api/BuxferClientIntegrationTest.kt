@@ -12,6 +12,7 @@ import com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor
 import com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import net.javacrumbs.jsonunit.assertj.assertThatJson
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
@@ -70,7 +71,7 @@ class BuxferClientIntegrationTest {
     fun `getAccounts returns deserialized fixture data`() = runTest {
         val accounts = client.getAccounts()
         assertThat(accounts).hasSize(5)
-        assertThat(accounts[0].id).isEqualTo(10350)
+        assertThatJson(accounts.toString()).inPath("$[0].id").isEqualTo(10350)
     }
 
     @Test

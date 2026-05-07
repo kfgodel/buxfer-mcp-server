@@ -29,22 +29,28 @@ class BuxferClientErrorHandlingTest {
 
     @Test
     fun `parse error surfaces field, type, and endpoint context`() = runTest {
-        // Account.id is the identity field — required, no default. If the API drops it,
+        // Tag.id is the identity field — required, no default. If the API drops it,
         // kotlinx.serialization throws SerializationException naming the missing field
         // and type, and BuxferClient.traced wraps it as BuxferApiException with method+path
         // context. Together that's enough to diagnose real API drift on sight.
+        //
+        // Note: this exercises the strict-decode-as-throw path used by all unmigrated
+        // endpoints (`getTags`, `getBudgets`, …) which still go through `getList`.
+        // The Accounts endpoint moved to a non-throwing schema-validation model — its
+        // drift coverage lives in `BuxferClientTest`'s `getAccounts logs schema-drift
+        // warning` test.
         val engine = MockEngineSupport.newEngine(overrides = mapOf(
-            "/accounts" to """{"response":{"status":"OK","accounts":[{"name":"x"}]}}"""
+            "/tags" to """{"response":{"status":"OK","tags":[{"name":"x"}]}}"""
         ))
         BuxferClient(BuxferClientConfig(engine = engine)).use { parseClient ->
             parseClient.login("user@example.com", "password")
 
-            val ex = assertThrows<BuxferApiException> { parseClient.getAccounts() }
+            val ex = assertThrows<BuxferApiException> { parseClient.getTags() }
 
             assertThat(ex.message)
-                .contains("GET /accounts")
+                .contains("GET /tags")
                 .contains("id")
-                .contains("Account")
+                .contains("Tag")
             assertThat(ex.cause).isInstanceOf(kotlinx.serialization.SerializationException::class.java)
         }
     }

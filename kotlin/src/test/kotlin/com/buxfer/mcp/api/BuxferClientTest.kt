@@ -1,5 +1,9 @@
 package com.buxfer.mcp.api
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import com.buxfer.mcp.TestFixtureLoader
 import com.buxfer.mcp.api.models.AddTransactionParams
 import com.buxfer.mcp.testing.MockEngineSupport
@@ -10,11 +14,13 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import net.javacrumbs.jsonunit.assertj.assertThatJson
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.data.Index.atIndex
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
 
 class BuxferClientTest {
 
@@ -50,15 +56,35 @@ class BuxferClientTest {
     }
 
     @Test
-    fun `getAccounts returns parsed Account list`() = runTest {
+    fun `getAccounts returns JsonArray of account objects`() = runTest {
         val accounts = client.getAccounts()
-        assertThat(accounts)
-            .hasSize(5)
-            .satisfies({
-                assertThat(it.id).isEqualTo(10350)
-                assertThat(it.balance).isEqualTo(360.01)
-                assertThat(it.currency).isEqualTo("ARS")
-            }, atIndex(0))
+        assertThat(accounts).hasSize(5)
+        val text = accounts.toString()
+        assertThatJson(text).inPath("$[0].id").isEqualTo(10350)
+        assertThatJson(text).inPath("$[0].balance").isEqualTo(360.01)
+        assertThatJson(text).inPath("$[0].currency").isEqualTo("ARS")
+    }
+
+    @Test
+    fun `getAccounts logs schema-drift warning on missing required field`() = runTest {
+        val appender = ListAppender<ILoggingEvent>().also { it.start() }
+        val logger = LoggerFactory.getLogger(BuxferClient::class.java) as Logger
+        logger.addAppender(appender)
+        try {
+            // Drop the required `currency` field from the fixture so the strict validator fires.
+            BuxferClient(BuxferClientConfig(engine = MockEngineSupport.newEngine(overrides = mapOf(
+                "/accounts" to """{"response":{"status":"OK","accounts":[{"id":1,"name":"x","bank":"y","balance":0.0}]}}"""
+            )))).use { c ->
+                c.login("user@example.com", "password")
+                c.getAccounts()  // returns the JsonArray; warning logs as a side effect, no throw
+            }
+
+            val warning = appender.list.find { it.level == Level.WARN && it.formattedMessage.contains("/accounts") }
+            assertThat(warning).isNotNull
+            assertThat(warning!!.formattedMessage).contains("currency")
+        } finally {
+            logger.detachAppender(appender)
+        }
     }
 
     @Test

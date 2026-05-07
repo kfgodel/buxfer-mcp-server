@@ -29,9 +29,11 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.slf4j.LoggerFactory
@@ -46,6 +48,18 @@ internal val buxferJson = Json {
     // to Claude compact and free of "field": null / "field": [] noise. Set
     // explicitly even though it matches the library default — the choice is part
     // of the contract, not an accident of inheritance.
+    encodeDefaults = false
+}
+
+/**
+ * Strict Json instance used only by [BuxferClient.validateSchema] for drift-detection
+ * decode attempts. With `ignoreUnknownKeys = false` an unexpected field in the response
+ * surfaces as a SerializationException; together with the schema's non-nullable fields,
+ * any change in Buxfer's response shape becomes a precise warning. Failures are logged
+ * and discarded — the data path uses [buxferJson] (permissive) and is never affected.
+ */
+internal val validatorJson = Json {
+    ignoreUnknownKeys = false
     encodeDefaults = false
 }
 
@@ -180,7 +194,34 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
             buxferJson.decodeFromJsonElement(body[jsonKey] ?: JsonArray(emptyList()))
         }
 
-    suspend fun getAccounts(): List<Account> = getList("/accounts", "accounts")
+    suspend fun getAccounts(): JsonArray = traced("GET", "/accounts") {
+        val response = httpClient.get("${config.baseUrl}/accounts") {
+            parameter("token", requireToken())
+        }
+        val body = responseBody(text(response))
+        val accounts = body["accounts"]?.jsonArray ?: JsonArray(emptyList())
+        validateSchema<List<Account>>(accounts, "/accounts")
+        accounts
+    }
+
+    /**
+     * Attempts to decode [json] against the schema [T] using the strict [validatorJson].
+     * Strictly side-effect: failures are logged and discarded so the data path (which
+     * already holds the raw [JsonElement]) is never affected. SerializationException is
+     * the expected drift signal (missing field, wrong type, unexpected key) and logs at
+     * WARN; anything else is a coding-side surprise — logged at ERROR so it gets noticed
+     * but still doesn't propagate.
+     */
+    private inline fun <reified T> validateSchema(json: JsonElement, path: String) {
+        runCatching { validatorJson.decodeFromJsonElement<T>(json) }
+            .onFailure { e ->
+                if (e is SerializationException) {
+                    log.warn("Schema drift on {}: {}", path, e.message)
+                } else {
+                    log.error("Schema validation failed unexpectedly on {}: {}", path, e.message, e)
+                }
+            }
+    }
 
     suspend fun getTransactions(filters: TransactionFilters = TransactionFilters()): TransactionsResult =
         traced("GET", "/transactions") {

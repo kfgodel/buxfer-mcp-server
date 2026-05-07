@@ -299,10 +299,33 @@ Original sub-decisions and outcome (2026-05-07):
 
 This is an MCP server: Buxfer JSON in, JSON out to Claude. **Claude is the data consumer; it parses JSON itself.** The Phase 1 inventory confirmed that no response-model field is read programmatically in our code — every tool just `Json.encodeToString(model)` and forwards. Yet we maintain 14 model classes that hand-mirror the wire format, plus tests that exercise them.
 
-Worth challenging:
-- Could we pass the raw `JsonObject` straight from `BuxferClient` to `TextContent.text`, dropping the response-model layer entirely?
-- The unambiguous keepers are the request/transformation DTOs: `AddTransactionParams`, `TransactionFilters` (Kotlin args → wire form/query). And `TransactionsResult.numTransactions` (we read it). Everything else is a pass-through.
-- What we'd lose: per-field deserialization errors on drift (the precise-error story we just built). Schema-as-Kotlin-types as a contract document.
-- What we'd gain: zero response-model maintenance. New Buxfer fields propagate to Claude with no code change. Less indirection. Tools become near-trivial.
+#### Approach (decided 2026-05-07)
 
-This may dramatically simplify the Tools layer too; resolve before/alongside that review step.
+Drop response classes as **data carriers** but keep them as **drift-detection schemas**:
+- `BuxferClient` returns the raw `JsonElement` (typically `JsonArray` or `JsonObject`) extracted from Buxfer's `response.<key>`. Tool layer forwards via `mcpTool` — `buxferJson.encodeToString(jsonElement)` produces the same wire shape Claude saw before.
+- A side-effect `validateSchema<T>(json, path)` attempts a strict `decodeFromJsonElement<T>` using a dedicated `validatorJson` (`ignoreUnknownKeys = false`). On `SerializationException` it logs a WARNING — never throws. Production data flow is unaffected; the operator gets a precise drift signal (missing field, wrong type, unexpected key).
+- Schema fields are tightened to non-nullable wherever fixture evidence shows they are always present, so the warning fires only on real drift.
+- Request DTOs (`AddTransactionParams`, `TransactionFilters`) keep their typed shape — they have a real Kotlin-args-to-wire role.
+
+#### Pilot outcome (2026-05-07) — Accounts
+
+- `Account.kt` tightened: all 5 fields non-nullable (`id`, `name`, `bank`, `balance`, `currency`). `lastSynced` (in spec but absent from every fixture) intentionally skipped.
+- `BuxferClient.getAccounts()` now returns `JsonArray`. `validateSchema<List<Account>>` runs as a side effect.
+- `AccountTools.listAccounts` body unchanged (the existing `mcpTool` one-liner forwards `JsonArray` natively).
+- Tests: `getAccounts returns parsed Account list` rewritten to `getAccounts returns JsonArray of account objects`; new `getAccounts logs schema-drift warning on missing required field` validates the Logback warning fires on a malformed fixture. **93 tests green.**
+- Net: production deletes the typed-data round-trip for one endpoint; gains operator-facing drift warnings on the same endpoint.
+
+#### Rollout queue
+
+The `validateSchema` helper is in place; each remaining endpoint follows the same shape (schema tightening + return-type change + tests update). Per-type findings from the API-doc / fixture / Kotlin-model cross-reference live in the rollout notes:
+
+- **Tag** — small, clean. Fixture always has `id`, `name`, `relativeName`. `parentId` stays nullable (spec says explicitly nullable).
+- **Contact** — clean. All 4 fields (`id`, `name`, `email`, `balance`) fixture-always-present.
+- **Loan** — clean. All 4 fields (`entity`, `type`, `balance`, `description`) fixture-always-present.
+- **Transaction** — biggest scope. Fixture rich; many fields not in spec (`transactionType`, `expenseAmount`, `tagNames`, `isFutureDated`, `isPending`). Conditional fields (`fromAccount`/`toAccount` only on transfers); `accountId` legitimately nullable on transfers. Mystery: `transactionType` vs `type` — possible duplicate, worth user discussion.
+- **Budget** — biggest spec/fixture divergence. Spec has `remaining` + `tags[]` + `keywords[]`; fixture has `balance` + `spent` + `tagId` + `tag` (object) and many fixture-only fields. Fixture is closer to ground truth. Needs explicit user discussion.
+- **Reminder** — similar to Budget. Spec talks about `period`, fixture has `periodUnit` + `periodSize`. Mystery: `transactionType` (int) alongside `type` (string).
+- **Group / Member** — fixture is empty (`[]`). Can't infer schema from fixture. Defer until a real fixture is captured, or document decisions from spec only.
+- **AccountRef** (nested in Transaction transfer fields) — `id` always, `name` always when present.
+- **TransactionsResult** wrapper — fixture has `"numTransactions": "5"` (string) but Kotlin currently declares `Int` and reads it via `.toIntOrNull()` in `BuxferClient`. Schema either matches the wire form (string) or stays Int and the validator gets a warning.
+- **UploadStatementResult** wrapper — fixture is empty (`{}`); a capture gap. Schema can mirror spec: `uploaded: Int`, `balance: Double`.
