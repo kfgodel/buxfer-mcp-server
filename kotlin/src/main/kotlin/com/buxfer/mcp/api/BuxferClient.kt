@@ -194,15 +194,32 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
             buxferJson.decodeFromJsonElement(body[jsonKey] ?: JsonArray(emptyList()))
         }
 
-    suspend fun getAccounts(): JsonArray = traced("GET", "/accounts") {
-        val response = httpClient.get("${config.baseUrl}/accounts") {
-            parameter("token", requireToken())
+    suspend fun getAccounts(): JsonArray = getValidatedList<List<Account>>("/accounts")
+
+    /**
+     * Authenticated GET that returns the inner `JsonArray` named after the path's last
+     * segment, validating it against the schema [Schema] as a side effect (warning-only,
+     * see [validateSchema]). Used by every migrated list endpoint — `getAccounts`,
+     * `getTags`, `getContacts`, etc. Each call site picks the schema type; the helper
+     * handles auth, envelope inspection, and validation.
+     *
+     * Counterpart to the older [getList], which still serves the unmigrated endpoints
+     * (typed data-carrier flow). Once all list endpoints migrate, [getList] goes away.
+     *
+     * `inline reified` is required so the call site keeps a concrete `Schema` for
+     * [validateSchema]'s `decodeFromJsonElement<Schema>`; a non-reified helper would
+     * fall back to `Any`'s serializer and fail at runtime.
+     */
+    private suspend inline fun <reified Schema> getValidatedList(path: String): JsonArray =
+        traced("GET", path) {
+            val response = httpClient.get("${config.baseUrl}$path") {
+                parameter("token", requireToken())
+            }
+            val body = responseBody(text(response))
+            val list = body[path.removePrefix("/")]?.jsonArray ?: JsonArray(emptyList())
+            validateSchema<Schema>(list, path)
+            list
         }
-        val body = responseBody(text(response))
-        val accounts = body["accounts"]?.jsonArray ?: JsonArray(emptyList())
-        validateSchema<List<Account>>(accounts, "/accounts")
-        accounts
-    }
 
     /**
      * Attempts to decode [json] against the schema [T] using the strict [validatorJson].
@@ -315,15 +332,7 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
             buxferJson.decodeFromJsonElement(body)
         }
 
-    suspend fun getTags(): JsonArray = traced("GET", "/tags") {
-        val response = httpClient.get("${config.baseUrl}/tags") {
-            parameter("token", requireToken())
-        }
-        val body = responseBody(text(response))
-        val tags = body["tags"]?.jsonArray ?: JsonArray(emptyList())
-        validateSchema<List<Tag>>(tags, "/tags")
-        tags
-    }
+    suspend fun getTags(): JsonArray = getValidatedList<List<Tag>>("/tags")
 
     suspend fun getBudgets(): List<Budget> = getList("/budgets", "budgets")
 
@@ -331,15 +340,7 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
 
     suspend fun getGroups(): List<Group> = getList("/groups", "groups")
 
-    suspend fun getContacts(): JsonArray = traced("GET", "/contacts") {
-        val response = httpClient.get("${config.baseUrl}/contacts") {
-            parameter("token", requireToken())
-        }
-        val body = responseBody(text(response))
-        val contacts = body["contacts"]?.jsonArray ?: JsonArray(emptyList())
-        validateSchema<List<Contact>>(contacts, "/contacts")
-        contacts
-    }
+    suspend fun getContacts(): JsonArray = getValidatedList<List<Contact>>("/contacts")
 
     suspend fun getLoans(): List<Loan> = getList("/loans", "loans")
 }
