@@ -2,6 +2,7 @@ package com.buxfer.mcp.api
 
 import com.buxfer.mcp.api.models.AddTransactionParams
 import com.buxfer.mcp.api.models.TransactionFilters
+import com.buxfer.mcp.testing.MockEngineSupport
 import com.buxfer.mcp.testing.WireMockSupport
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock.aResponse
@@ -121,7 +122,7 @@ class BuxferClientIntegrationTest {
             .willReturn(aResponse()
                 .withStatus(200)
                 .withHeader("Content-Type", "application/json")
-                .withBody("""{"response":{"status":"OK","uploaded":15,"balance":1234.56}}""")))
+                .withBody(MockEngineSupport.UPLOAD_STATEMENT_OK_BODY)))
 
         val result = client.uploadStatement(10350, "csv-content")
         assertThat(result.uploaded).isEqualTo(15)

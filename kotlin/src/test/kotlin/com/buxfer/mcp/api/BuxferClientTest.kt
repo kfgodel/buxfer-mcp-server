@@ -2,7 +2,7 @@ package com.buxfer.mcp.api
 
 import com.buxfer.mcp.TestFixtureLoader
 import com.buxfer.mcp.api.models.AddTransactionParams
-import com.buxfer.mcp.api.BuxferClientConfig
+import com.buxfer.mcp.testing.MockEngineSupport
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
@@ -20,31 +20,9 @@ class BuxferClientTest {
 
     private lateinit var client: BuxferClient
 
-    private fun mockEngine(overrides: Map<String, String> = emptyMap()) = MockEngine { request ->
-        val path = request.url.encodedPath
-        val body = overrides.entries.firstOrNull { path.endsWith(it.key) }?.value
-            ?: when {
-                path.endsWith("/login") -> TestFixtureLoader.load("login")
-                path.endsWith("/accounts") -> TestFixtureLoader.load("accounts")
-                path.endsWith("/transactions") -> TestFixtureLoader.load("transactions")
-                path.endsWith("/transaction_add") -> TestFixtureLoader.load("transaction_add")
-                path.endsWith("/transaction_edit") -> TestFixtureLoader.load("transaction_edit")
-                path.endsWith("/transaction_delete") -> TestFixtureLoader.load("transaction_delete")
-                path.endsWith("/upload_statement") -> """{"response":{"status":"OK","uploaded":15,"balance":1234.56}}"""
-                path.endsWith("/tags") -> TestFixtureLoader.load("tags")
-                path.endsWith("/budgets") -> TestFixtureLoader.load("budgets")
-                path.endsWith("/reminders") -> TestFixtureLoader.load("reminders")
-                path.endsWith("/groups") -> TestFixtureLoader.load("groups")
-                path.endsWith("/contacts") -> TestFixtureLoader.load("contacts")
-                path.endsWith("/loans") -> TestFixtureLoader.load("loans")
-                else -> """{"response":{"status":"error","error":"Not found"}}"""
-            }
-        respond(body, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
-    }
-
     @BeforeEach
     fun setUp() = runBlocking {
-        client = BuxferClient(BuxferClientConfig(engine = mockEngine()))
+        client = BuxferClient(BuxferClientConfig(engine = MockEngineSupport.newEngine()))
         client.login("user@example.com", "password")
     }
 
