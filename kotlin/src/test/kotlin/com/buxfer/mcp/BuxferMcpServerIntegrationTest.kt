@@ -40,6 +40,15 @@ import org.junit.jupiter.api.TestInstance
  *
  * This is the showcase test — a future reader should be able to follow the round-trip
  * top to bottom.
+ *
+ * Scenarios:
+ *   | Scenario                        | Layer it exercises                                       |
+ *   |---------------------------------|----------------------------------------------------------|
+ *   | listTools                       | Initialize handshake + tools/list path                   |
+ *   | list_accounts round-trip        | Full pipeline, deserialization → re-encode               |
+ *   | filter threading                | Args → query params plumbing via WireMock journal        |
+ *   | add_transaction form post       | POST/form path                                           |
+ *   | error envelope                  | BuxferApiException → isError surface                     |
  */
 @OptIn(ExperimentalMcpApi::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)

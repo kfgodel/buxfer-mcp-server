@@ -127,7 +127,7 @@ class TransactionToolsTest {
     }
 
     @Test
-    fun `editTransaction passes id and fields to client`() = runTest {
+    fun `editTransaction returns JSON of updated transaction`() = runTest {
         coEvery { mockClient.editTransaction(33645, any()) } returns editedTransaction
         val args: JsonObject = buildJsonObject {
             put("id", 33645)
@@ -172,7 +172,7 @@ class TransactionToolsTest {
     }
 
     @Test
-    fun `tool returns error result when client throws`() = runTest {
+    fun `listTransactions surfaces isError when client throws`() = runTest {
         coEvery { mockClient.getTransactions(any()) } throws BuxferApiException("boom")
 
         val result = tools.listTransactions(null)
