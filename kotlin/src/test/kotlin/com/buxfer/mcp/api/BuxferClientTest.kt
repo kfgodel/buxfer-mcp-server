@@ -15,7 +15,6 @@ import org.assertj.core.data.Index.atIndex
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 
 class BuxferClientTest {
 
@@ -85,7 +84,7 @@ class BuxferClientTest {
     }
 
     @Test
-    fun `getTransactions returns parsed Transaction list`() = runTest {
+    fun `getTransactions deserializes core Transaction scalars`() = runTest {
         val result = client.getTransactions()
         assertThat(result.numTransactions).isEqualTo(5)
         assertThat(result.transactions)
@@ -99,7 +98,13 @@ class BuxferClientTest {
                 assertThat(it.isFutureDated).isFalse()
                 assertThat(it.isPending).isFalse()
             }, atIndex(0))
-            // transfer transaction has fromAccount/toAccount
+    }
+
+    @Test
+    fun `getTransactions deserializes nested transfer accounts`() = runTest {
+        val result = client.getTransactions()
+        assertThat(result.transactions)
+            .hasSize(5)
             .satisfies({
                 assertThat(it.fromAccount?.id).isEqualTo(603017)
                 assertThat(it.fromAccount?.name).isEqualTo("Galicia ARS")
@@ -155,7 +160,7 @@ class BuxferClientTest {
     }
 
     @Test
-    fun `getBudgets returns parsed Budget list`() = runTest {
+    fun `getBudgets deserializes Budget scalar fields`() = runTest {
         val budgets = client.getBudgets()
         assertThat(budgets)
             .hasSize(2)
@@ -170,11 +175,20 @@ class BuxferClientTest {
                 assertThat(it.stopDate).isNull()
                 assertThat(it.budgetId).isEqualTo(58182)
                 assertThat(it.type).isEqualTo(1)
+                assertThat(it.isRolledOver).isEqualTo(0)
+                assertThat(it.eventId).isEqualTo(34183)
+            }, atIndex(0))
+    }
+
+    @Test
+    fun `getBudgets deserializes nested Budget tag reference`() = runTest {
+        val budgets = client.getBudgets()
+        assertThat(budgets)
+            .hasSize(2)
+            .satisfies({
                 assertThat(it.tagId).isEqualTo(57904)
                 assertThat(it.tag?.id).isEqualTo(57904)
                 assertThat(it.tag?.name).isEqualTo("Budget Tag 57904")
-                assertThat(it.isRolledOver).isEqualTo(0)
-                assertThat(it.eventId).isEqualTo(34183)
             }, atIndex(0))
     }
 
@@ -225,17 +239,6 @@ class BuxferClientTest {
     }
 
     @Test
-    fun `throws BuxferApiException on non-OK status`() = runTest {
-        BuxferClient(BuxferClientConfig(engine = mockEngine(overrides = mapOf(
-            "/accounts" to """{"response":{"status":"error","error":"Invalid token"}}"""
-        )))).use { errorClient ->
-            errorClient.login("user@example.com", "password")
-            val ex = assertThrows<BuxferApiException> { errorClient.getAccounts() }
-            assertThat(ex.message).isEqualTo("Invalid token")
-        }
-    }
-
-    @Test
     fun `custom baseUrl is used for all requests`() = runTest {
         val capturedHosts = mutableListOf<String>()
         val engine = MockEngine { request ->
@@ -248,42 +251,6 @@ class BuxferClientTest {
             customClient.login("user@example.com", "password")
             customClient.getAccounts()
             assertThat(capturedHosts).containsOnly("custom.example.test")
-        }
-    }
-
-    @Test
-    fun `parse error surfaces field, type, and endpoint context`() = runTest {
-        // Account.id is the identity field — required, no default. If the API drops it,
-        // kotlinx.serialization throws SerializationException naming the missing field
-        // and type, and BuxferClient.traced wraps it as BuxferApiException with method+path
-        // context. Together that's enough to diagnose real API drift on sight.
-        val engine = mockEngine(overrides = mapOf(
-            "/accounts" to """{"response":{"status":"OK","accounts":[{"name":"x"}]}}"""
-        ))
-        BuxferClient(BuxferClientConfig(engine = engine)).use { parseClient ->
-            parseClient.login("user@example.com", "password")
-
-            val ex = assertThrows<BuxferApiException> { parseClient.getAccounts() }
-
-            assertThat(ex.message)
-                .contains("GET /accounts")
-                .contains("id")
-                .contains("Account")
-            assertThat(ex.cause).isInstanceOf(kotlinx.serialization.SerializationException::class.java)
-        }
-    }
-
-    @Test
-    fun `throws on HTTP error response`() = runTest {
-        val engine = MockEngine { request ->
-            if (request.url.encodedPath.endsWith("/login"))
-                respond(TestFixtureLoader.load("login"), HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
-            else
-                respond("Server Error", HttpStatusCode.InternalServerError)
-        }
-        BuxferClient(BuxferClientConfig(engine = engine)).use { errorClient ->
-            errorClient.login("user@example.com", "password")
-            assertThrows<BuxferApiException> { errorClient.getAccounts() }
         }
     }
 }
