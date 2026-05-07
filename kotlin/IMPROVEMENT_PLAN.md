@@ -288,11 +288,12 @@ These were flagged during the Phase 5 walkthrough but deferred to keep each comm
 
 `BuxferClient` currently has no retry, no token refresh, no recovery story for transient failures. A flaky Buxfer connection means the MCP tool surfaces a one-shot error that Claude has no good way to recover from.
 
-Decide:
-- Should `traced` retry idempotent GETs on transient failures (5xx, timeouts, connection-refused)? Backoff strategy?
-- Should we re-login if a request returns 401 (expired token)? Today we'd just throw `BuxferApiException`.
-- Wrap `IOException` / `HttpRequestTimeoutException` from Ktor as `BuxferApiException` (currently they leak as Ktor types).
-- Per-call timeout overrides for slow endpoints (statement upload).
+Original sub-decisions and outcome (2026-05-07):
+
+- **Wrap `IOException` / `HttpRequestTimeoutException` / other Ktor types as `BuxferApiException`** — **Done.** `traced` now catches `HttpRequestTimeoutException` (extends `kotlinx.io.IOException`, needs its own arm), `java.io.IOException` (covers `ConnectException` / `UnknownHostException` / `SocketTimeoutException` / `SSLException`), `CancellationException` (rethrown without wrapping), and a final `Exception` arm for `FailToConnectException` and other engine-level failures. Tool layer's contract — every error from `BuxferClient` is `BuxferApiException` — is now intact. 3 tests in `BuxferClientErrorHandlingTest`. **92 tests green.**
+- **Retry idempotent GETs on transient failures.** **Deferred.** No operational evidence yet that the network is flaky enough to warrant retry. The LLM can re-invoke a failed tool itself; speculative retry would mask real Buxfer behavior the operator should see. Revisit if real-world usage shows it's needed.
+- **Re-login if a request returns 401 (expired token).** **Deferred.** Buxfer's docs are silent on token-expiration semantics and the error shape it returns for invalid vs. expired tokens (verified against both [www.buxfer.com/help/api](https://www.buxfer.com/help/api) and [shared/api-spec/buxfer-api.md](../shared/api-spec/buxfer-api.md)). Heuristic detection risks an infinite re-login loop on a wrong-credential error. Wait for empirical evidence before adding policy. If session expiration becomes a real pain point, options are (a) expose a `buxfer_relogin` MCP tool, or (b) detect a specific error message string and re-login transparently — both depend on Buxfer's actual error shape.
+- **Per-call timeout overrides for slow endpoints (statement upload).** **Deferred.** Only relevant if `uploadStatement` actually trips the 30s default in practice; no reports yet.
 
 ### Challenge the fixed-model-class approach
 

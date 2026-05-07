@@ -13,6 +13,7 @@ import com.buxfer.mcp.api.models.TransactionFilters
 import com.buxfer.mcp.api.models.TransactionsResult
 import com.buxfer.mcp.api.models.UploadStatementResult
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
@@ -23,6 +24,8 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.Parameters
 import io.ktor.http.isSuccess
+import java.io.IOException
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -92,6 +95,33 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
             // immediately diagnosable instead of crashing deep in tool code.
             log.error("Buxfer API parse error on {} {}: {}", method, path, e.message)
             throw BuxferApiException("Failed to parse $method $path response: ${e.message}", e)
+        } catch (e: HttpRequestTimeoutException) {
+            // HttpRequestTimeoutException extends kotlinx.io.IOException, NOT java.io.IOException
+            // — needs its own catch before the IOException branch.
+            log.error("Buxfer API timeout on {} {}: {}", method, path, e.message)
+            throw BuxferApiException(
+                "Request timed out after ${config.requestTimeoutMillis}ms: $method $path", e,
+            )
+        } catch (e: IOException) {
+            // Covers ConnectException (server down), UnknownHostException (DNS),
+            // SocketTimeoutException, SSLException, SocketException — every standard
+            // network failure surfaces here.
+            log.error("Buxfer API network error on {} {}: {}", method, path, e.message)
+            throw BuxferApiException(
+                "Network error contacting Buxfer ($method $path): ${e.message}", e,
+            )
+        } catch (e: CancellationException) {
+            // Never wrap structured-concurrency cancellation — it must propagate so the
+            // suspending caller (and kotlinx.coroutines) can unwind cleanly.
+            throw e
+        } catch (e: Exception) {
+            // Last resort: Ktor's FailToConnectException (extends plain Exception, not
+            // IOException) and any other engine-level failure. Wrap so the tool layer's
+            // contract — every error from BuxferClient is BuxferApiException — stays
+            // clean. Catches Exception (not Throwable), so OOM / StackOverflowError
+            // still propagate as-is.
+            log.error("Buxfer API unexpected error on {} {}: {}", method, path, e.message)
+            throw BuxferApiException("Unexpected error on $method $path: ${e.message}", e)
         }
     }
 

@@ -6,14 +6,14 @@ A Kotlin/JVM implementation of the Buxfer MCP server. Uses the official [MCP Kot
 
 ## Current improvement work
 
-A multi-session refactor is in flight. Phases 1–5 of [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) — AssertJ migration, Logback rolling-file logging, configurable base URL, server-bootstrap unit tests, integration tests with WireMock + ChannelTransport, and a bottom-up code review of every production layer (Models → API client → Tools → Server → Main) — are complete, including the post-review test-suite follow-through. **89 tests green.**
+A multi-session refactor is in flight. Phases 1–5 of [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) — AssertJ migration, Logback rolling-file logging, configurable base URL, server-bootstrap unit tests, integration tests with WireMock + ChannelTransport, and a bottom-up code review of every production layer (Models → API client → Tools → Server → Main) — are complete, including the post-review test-suite follow-through. The resilience follow-up's exception-wrapping piece is also done: `BuxferClient.traced` now wraps every Ktor / IO failure as `BuxferApiException` so the tool layer's contract stays clean. **92 tests green.**
 
-Two independent follow-ups remain:
+Remaining follow-ups:
 
-1. **Resilience to intermittent server failures** — see [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) §"Resilience to intermittent server failures". `BuxferClient` retry on transient failures, token refresh on 401, wrapping `IOException` / `HttpRequestTimeoutException` from Ktor as `BuxferApiException`.
+1. **Resilience policy decisions (deferred sub-items)** — see [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) §"Resilience to intermittent server failures". Retry on transient failures, re-login on 401 / expired token, per-call timeout overrides — all deliberately not implemented yet because Buxfer's docs are silent on token expiration semantics and we have no operational evidence that retry/timeout speculation would help. Revisit when real-world usage produces a concrete trigger.
 2. **Challenge the fixed-model-class approach** — see [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) §"Challenge the fixed-model-class approach". Phase 1 inventory found that no response-model field is read programmatically. Should we drop the 14 typed response models in favor of a `JsonObject` pass-through, since Claude (the consumer) parses JSON itself?
 
-Items are independent — pick either to start.
+Item 2 is the active design question; item 1 is wait-for-signal.
 
 ## MCP Kotlin SDK Reference
 
