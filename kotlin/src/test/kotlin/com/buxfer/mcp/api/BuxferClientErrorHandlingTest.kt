@@ -29,28 +29,29 @@ class BuxferClientErrorHandlingTest {
 
     @Test
     fun `parse error surfaces field, type, and endpoint context`() = runTest {
-        // Reminder.id is the identity field — required, no default. If the API drops it,
+        // Group.id is the identity field — required, no default. If the API drops it,
         // kotlinx.serialization throws SerializationException naming the missing field
         // and type, and BuxferClient.traced wraps it as BuxferApiException with method+path
         // context. Together that's enough to diagnose real API drift on sight.
         //
-        // Note: this exercises the strict-decode-as-throw path used by all unmigrated
-        // endpoints (the ones still going through `getList`). Migrated endpoints use the
-        // non-throwing `validateSchema` path — their drift coverage lives in
-        // `getAccounts logs schema-drift warning on missing required field`.
-        // As more endpoints migrate, repoint this test to whichever still uses `getList`.
+        // Note: this exercises the strict-decode-as-throw path used by the few unmigrated
+        // endpoints still going through `getList`. Migrated endpoints use the non-throwing
+        // `validateSchema` path — their drift coverage lives in
+        // `getAccounts logs schema-drift warning on missing required field`. Once Groups
+        // and Transactions migrate, this test should be deleted (the path it covers will
+        // no longer exist).
         val engine = MockEngineSupport.newEngine(overrides = mapOf(
-            "/reminders" to """{"response":{"status":"OK","reminders":[{"name":"x"}]}}"""
+            "/groups" to """{"response":{"status":"OK","groups":[{"name":"x"}]}}"""
         ))
         BuxferClient(BuxferClientConfig(engine = engine)).use { parseClient ->
             parseClient.login("user@example.com", "password")
 
-            val ex = assertThrows<BuxferApiException> { parseClient.getReminders() }
+            val ex = assertThrows<BuxferApiException> { parseClient.getGroups() }
 
             assertThat(ex.message)
-                .contains("GET /reminders")
+                .contains("GET /groups")
                 .contains("id")
-                .contains("Reminder")
+                .contains("Group")
             assertThat(ex.cause).isInstanceOf(kotlinx.serialization.SerializationException::class.java)
         }
     }

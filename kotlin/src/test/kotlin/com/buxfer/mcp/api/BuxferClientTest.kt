@@ -193,27 +193,25 @@ class BuxferClientTest {
     }
 
     @Test
-    fun `getReminders returns parsed Reminder list`() = runTest {
+    fun `getReminders returns JsonArray of reminder objects`() = runTest {
         val reminders = client.getReminders()
-        assertThat(reminders)
-            .hasSize(2)
-            .satisfies({
-                assertThat(it.id).isEqualTo(57872)
-                assertThat(it.name).isEqualTo("Reminder 57872")
-                assertThat(it.description).isEqualTo("Reminder description 57872")
-                assertThat(it.periodUnit).isEqualTo("month")
-                assertThat(it.nextExecution).isEqualTo("2026-05-03")
-                assertThat(it.dueDateDescription).isEqualTo("2026-05-03")
-                assertThat(it.numDaysForDueDate).isEqualTo(7)
-                assertThat(it.tags).hasSize(1)
-                assertThat(it.tags?.get(0)?.id).isEqualTo(19297)
-                assertThat(it.tags?.get(0)?.name).isEqualTo("Tag 19297")
-                assertThat(it.editMode).isEqualTo("schedule_all")
-                assertThat(it.periodSize).isEqualTo(1)
-                assertThat(it.stopDate).isNull()
-                assertThat(it.type).isEqualTo("expense")
-                assertThat(it.transactionType).isEqualTo(3)
-            }, atIndex(0))
+        assertThat(reminders).hasSize(2)
+        val text = reminders.toString()
+        assertThatJson(text).inPath("$[0].id").isEqualTo(57872)
+        assertThatJson(text).inPath("$[0].name").isEqualTo("Reminder 57872")
+        assertThatJson(text).inPath("$[0].description").isEqualTo("Reminder description 57872")
+        assertThatJson(text).inPath("$[0].periodUnit").isEqualTo("month")
+        assertThatJson(text).inPath("$[0].nextExecution").isEqualTo("2026-05-03")
+        assertThatJson(text).inPath("$[0].dueDateDescription").isEqualTo("2026-05-03")
+        assertThatJson(text).inPath("$[0].numDaysForDueDate").isEqualTo(7)
+        assertThatJson(text).inPath("$[0].tags").isArray.hasSize(1)
+        assertThatJson(text).inPath("$[0].tags[0].id").isEqualTo(19297)
+        assertThatJson(text).inPath("$[0].tags[0].name").isEqualTo("Tag 19297")
+        assertThatJson(text).inPath("$[0].editMode").isEqualTo("schedule_all")
+        assertThatJson(text).inPath("$[0].periodSize").isEqualTo(1)
+        assertThatJson(text).inPath("$[0].stopDate").isNull()
+        assertThatJson(text).inPath("$[0].type").isEqualTo("expense")
+        assertThatJson(text).inPath("$[0].transactionType").isEqualTo(3)
     }
 
     @Test

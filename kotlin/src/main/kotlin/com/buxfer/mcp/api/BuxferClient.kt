@@ -336,7 +336,7 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
 
     suspend fun getBudgets(): JsonArray = getValidatedList<List<Budget>>("/budgets")
 
-    suspend fun getReminders(): List<Reminder> = getList("/reminders", "reminders")
+    suspend fun getReminders(): JsonArray = getValidatedList<List<Reminder>>("/reminders")
 
     suspend fun getGroups(): List<Group> = getList("/groups", "groups")
 

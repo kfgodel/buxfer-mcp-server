@@ -147,7 +147,7 @@ class BuxferClientIntegrationTest {
     fun `getReminders returns deserialized fixture data`() = runTest {
         val reminders = client.getReminders()
         assertThat(reminders).hasSize(2)
-        assertThat(reminders[0].id).isEqualTo(57872)
+        assertThatJson(reminders.toString()).inPath("$[0].id").isEqualTo(57872)
     }
 
     @Test

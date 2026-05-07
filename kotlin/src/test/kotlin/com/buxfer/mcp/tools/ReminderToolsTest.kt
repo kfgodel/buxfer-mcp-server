@@ -2,12 +2,15 @@ package com.buxfer.mcp.tools
 
 import com.buxfer.mcp.api.BuxferApiException
 import com.buxfer.mcp.api.BuxferClient
-import com.buxfer.mcp.api.models.Reminder
-import com.buxfer.mcp.api.models.Tag
 import io.mockk.coEvery
 import io.mockk.mockk
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.addJsonObject
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 import net.javacrumbs.jsonunit.assertj.assertThatJson
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -25,16 +28,26 @@ class ReminderToolsTest {
 
     @Test
     fun `listReminders returns JSON array of reminders`() = runTest {
-        val reminderTag = Tag(id = 19297, name = "Tag 19297", relativeName = "tag 19297", parentId = 58082)
-        val reminders = listOf(
-            Reminder(id = 57872, name = "Reminder 57872", description = "Reminder description 57872",
-                startDate = "2026-02-03", periodUnit = "month", amount = 3.44, accountId = 13872,
-                nextExecution = "2026-05-03", dueDateDescription = "2026-05-03", numDaysForDueDate = 7,
-                tags = listOf(reminderTag), editMode = "schedule_all", periodSize = 1, stopDate = null,
-                type = "expense", transactionType = 3),
-            Reminder(id = 6886, name = "Reminder 6886", description = "Reminder description 6886",
-                startDate = "2026-03-16", periodUnit = "month", amount = 39612.63, accountId = 605)
-        )
+        // BuxferClient.getReminders() now returns the raw JsonArray; build the test fixture to match.
+        // The tool layer doesn't run validation, so a partial second record is fine here.
+        val reminders = buildJsonArray {
+            addJsonObject {
+                put("id", 57872); put("name", "Reminder 57872"); put("description", "Reminder description 57872")
+                put("startDate", "2026-02-03"); put("periodUnit", "month"); put("periodSize", 1)
+                put("amount", 3.44); put("accountId", 13872)
+                put("nextExecution", "2026-05-03"); put("dueDateDescription", "2026-05-03")
+                put("numDaysForDueDate", 7)
+                putJsonArray("tags") {
+                    addJsonObject {
+                        put("id", 19297); put("name", "Tag 19297")
+                        put("relativeName", "tag 19297"); put("parentId", 58082)
+                    }
+                }
+                put("editMode", "schedule_all"); put("stopDate", JsonNull)
+                put("type", "expense"); put("transactionType", 3)
+            }
+            addJsonObject { put("id", 6886) }  // partial; only used for hasSize(2)
+        }
         coEvery { mockClient.getReminders() } returns reminders
 
         val result = tools.listReminders()
