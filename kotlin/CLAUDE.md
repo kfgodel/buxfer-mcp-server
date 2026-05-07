@@ -4,11 +4,56 @@
 
 A Kotlin/JVM implementation of the Buxfer MCP server. Uses the official [MCP Kotlin SDK](https://github.com/modelcontextprotocol/kotlin-sdk) and [Ktor](https://ktor.io/) for HTTP calls to the Buxfer REST API.
 
-## Current improvement work
+## Open work
 
-The multi-session refactor that opened this module is **functionally complete** as of 2026-05-07. Phases 1–5 of the original plan, the post-review test-suite follow-through, the resilience exception-wrapping piece, and the full model-layer challenge (every endpoint — both GET list endpoints and the write endpoints `addTransaction` / `editTransaction` / `uploadStatement`) all landed. Every `BuxferClient.<method>()` now returns the raw `JsonElement` Buxfer sent (envelope-stripped) and validates the shape via the `validateSchema` helper as a warning-only side effect. Data classes in `api/models/` survive as **drift-detection schemas** using the three-tier nullability convention documented in [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md). The legacy `getList<T>` helper is gone. **92 tests green.**
+- **Test the MCP server end-to-end** — wire it into Claude Desktop / Claude Code and verify each registered tool (`buxfer_list_accounts`, `buxfer_list_transactions`, `buxfer_add_transaction`, …) responds correctly against a real Buxfer account. The integration tests prove the wire shape against captured fixtures, but a live verification confirms the SDK bootstrap, stdio transport, env-var configuration, and tool-registration story end-to-end. See `## Claude Desktop Integration` below for the config snippet.
 
-Three follow-ups remain — all **wait-for-signal**, no in-flight work — see [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) §"Remaining follow-ups": resilience policy (retry / re-login / per-call timeouts), Group fixture gap (empty fixture leaves the schema unverified), multi-language polish (TypeScript and Python implementations).
+## Conventions
+
+These crystallised during the multi-session refactor that brought this module to its current shape (92 tests green; data path forwards raw Buxfer JSON to Claude with side-effect schema validation). Mirror them when adding new endpoints, models, or tests.
+
+### Three-tier nullability
+
+Schemas in `kotlin/src/main/kotlin/com/buxfer/mcp/api/models/` exist for **drift detection**, not as data carriers. Each field's declaration encodes a different drift signal:
+
+| Declaration                  | Key required in JSON? | Value can be `null`? | Use for                                                        |
+|------------------------------|-----------------------|----------------------|----------------------------------------------------------------|
+| `field: Type`                | yes                   | no                   | Fixture-always-present with non-null value (the common case).  |
+| `field: Type?` *(no default)*| **yes**               | yes                  | Key always present in fixture, value sometimes `null`.         |
+| `field: Type? = null`        | no                    | yes                  | Spec-only / forward-compat — key may be absent entirely.       |
+
+Rationale: a missing default makes the field required by deserialization (absence triggers `MissingFieldException`). The type's `?` is independent — it controls whether `null` is a valid *value*. Combining the two encodes "the API always sends this key, sometimes with a null value" as a distinct signal from "the API may or may not send this key at all".
+
+### Fixture rules + spec-forward-compat
+
+When deciding nullability:
+
+- **Required** (Tier 1) only when the captured fixture has the field on every record with a non-null value. Fixture is ground truth.
+- **Required key, nullable value** (Tier 2) when the fixture always has the key but its value is sometimes `null`.
+- **Optional / spec-only** (Tier 3, `Type? = null`) for fields the Buxfer API spec mentions but no captured fixture carries. Keeps the schema forward-compatible (the validator accepts the new field gracefully) and serves as documentation of what the spec promises.
+
+If the API doc and fixture disagree, the fixture wins for required-fields decisions; spec-only divergent fields go in as Tier 3.
+
+### Model-as-schema validation
+
+`BuxferClient` returns raw `JsonElement` (`JsonArray` for list endpoints, `JsonObject` for the wrapper-shaped `/transactions` and the write endpoints). The data path forwards the raw response to Claude unchanged.
+
+Validation runs as a **side effect** via the `validateSchema<T>` helper in `BuxferClient`:
+
+- Strict decode against the schema using a dedicated `validatorJson` (`ignoreUnknownKeys = false`) — strict so unknown fields surface as drift.
+- `SerializationException` → `log.warn("Schema drift on ...")`. Never thrown.
+- Any other exception → `log.error("Schema validation failed unexpectedly ...")`. Also never thrown.
+- The data path uses the production `buxferJson` (permissive `ignoreUnknownKeys = true`) and is never affected by validation outcomes.
+
+The shared `getValidatedList<Schema>(path)` helper handles the common shape (HTTP GET → envelope strip → array extract → validate → return). Endpoints with non-standard shapes (currently just `getTransactions` with its `transactions[]` + `numTransactions` wrapper, and the write endpoints with their `JsonObject` responses) inline the same pattern: HTTP, envelope strip, `validateSchema<Schema>(body, path)`, return body.
+
+### Other invariants worth preserving
+
+- **No stdout output anywhere.** MCP communicates over stdio; any `print`/`println`/`System.out` breaks the protocol. Logback config is file-only by default; fatal startup errors go to stderr.
+- **`@Volatile` for the auth token**, set once on login and read many times. No other shared mutable state in `BuxferClient`.
+- **`AutoCloseable` resources use `.use { ... }`** in tests; the long-running server closes via JVM shutdown hook in `Main.kt`.
+- **No star imports.** No multi-class files.
+- **Run gradle via ASDF shims**: `PATH="$HOME/.asdf/shims:$PATH" gradle test` from `kotlin/`.
 
 ## MCP Kotlin SDK Reference
 
