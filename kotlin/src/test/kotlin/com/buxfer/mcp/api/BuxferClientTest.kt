@@ -145,9 +145,9 @@ class BuxferClientTest {
     }
 
     @Test
-    fun `deleteTransaction succeeds without exception`() = runTest {
-        client.deleteTransaction(33645)
-        // no exception = success
+    fun `deleteTransaction returns the status-OK response body`() = runTest {
+        val body = client.deleteTransaction(33645)
+        assertThatJson(body.toString()).inPath("$.status").isEqualTo("OK")
     }
 
     @Test

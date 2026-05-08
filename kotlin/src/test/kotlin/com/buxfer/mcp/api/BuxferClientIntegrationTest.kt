@@ -123,9 +123,10 @@ class BuxferClientIntegrationTest {
     }
 
     @Test
-    fun `deleteTransaction posts form data and succeeds`() = runTest {
-        client.deleteTransaction(33645)
+    fun `deleteTransaction posts form data and returns the status-OK body`() = runTest {
+        val body = client.deleteTransaction(33645)
         assertThat(wireMock.findAll(postRequestedFor(urlPathEqualTo("/api/transaction_delete")))).hasSize(1)
+        assertThatJson(body.toString()).inPath("$.status").isEqualTo("OK")
     }
 
     @Test

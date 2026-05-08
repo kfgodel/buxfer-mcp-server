@@ -9,6 +9,18 @@ Source: https://www.buxfer.com/help/api
 > wire shape we received and a deep link to the exact upstream subsection it
 > contradicts. Implementations should treat the callouts as the ground truth
 > and the surrounding spec text as the upstream's stated intent.
+>
+> **Verify against the raw HTTP response, not against MCP-tool output.** A
+> previously-recorded `transaction_delete` divergence here was a false
+> positive: the shape we "observed" — `{"deleted": true, "id": <int>}` —
+> turned out to be synthesized by `TransactionTools.deleteTransaction` in the
+> Kotlin server, not produced by Buxfer. The live API really does return
+> `{"status":"OK"}` per the upstream docs and the captured fixture. Anchor
+> any future divergence to a raw response (e.g. via
+> `api-recordings/run-capture.sh`) — the MCP layer strips the standard
+> `response` envelope and may otherwise reshape payloads, so its output is
+> downstream of transformations and is not a reliable witness to the wire
+> shape.
 
 ## Base URL
 
@@ -225,15 +237,6 @@ Delete a transaction.
 ```json
 { "status": "OK" }
 ```
-
-> **Live API divergence (verified 2026-05-08)** vs [upstream `transaction_delete` section](https://www.buxfer.com/help/api#transaction_delete):
-> the response (after the standard `response` unwrap) is
-> `{"deleted": <bool>, "id": <int>}`, not the documented `{"status": "OK"}`
-> shape. Observed payload:
->
-> ```json
-> { "deleted": true, "id": 240160724 }
-> ```
 
 ---
 

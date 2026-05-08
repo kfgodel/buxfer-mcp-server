@@ -286,14 +286,27 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
             body
         }
 
-    suspend fun deleteTransaction(id: Int): Unit = traced("POST", "/transaction_delete") {
+    suspend fun deleteTransaction(id: Int): JsonObject = traced("POST", "/transaction_delete") {
         val response = httpClient.post("${config.baseUrl}/transaction_delete") {
             setBody(FormDataContent(Parameters.build {
                 append("token", requireToken())
                 append("id", id.toString())
             }))
         }
-        responseBody(text(response))
+        val body = responseBody(text(response))
+        // /transaction_delete's response payload is just `{"status":"OK"}` — there is
+        // no other data to consume. Assert the success marker explicitly so a
+        // non-"OK" status (anything `responseBody` did not already classify as an
+        // explicit "error") surfaces to the tool layer as a BuxferApiException, which
+        // `runCatching` in TransactionTools converts to an MCP isError=true result.
+        // Without this check, a degraded API response would silently look like success.
+        val status = body["status"]?.jsonPrimitive?.contentOrNull
+        if (status != "OK") {
+            throw BuxferApiException(
+                "transaction_delete returned non-OK status: ${status ?: "<missing>"}",
+            )
+        }
+        body
     }
 
     suspend fun uploadStatement(accountId: Int, statement: String, dateFormat: String? = null): JsonObject =

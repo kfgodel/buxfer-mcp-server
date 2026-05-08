@@ -141,15 +141,33 @@ class TransactionToolsTest {
     }
 
     @Test
-    fun `deleteTransaction returns confirmation on success`() = runTest {
-        coEvery { mockClient.deleteTransaction(33645) } returns Unit
+    fun `deleteTransaction forwards Buxfer's status-OK response body`() = runTest {
+        // Live API returns `{"status":"OK"}` after the standard envelope strip — see
+        // the captured fixture `transaction_delete.json`. The tool forwards it
+        // verbatim instead of synthesizing a richer (and dishonest) shape.
+        val deleteBody = buildJsonObject { put("status", "OK") }
+        coEvery { mockClient.deleteTransaction(33645) } returns deleteBody
         val args: JsonObject = buildJsonObject { put("id", 33645) }
 
         val result = tools.deleteTransaction(args)
 
         val text = (result.content[0] as TextContent).text
-        assertThatJson(text).inPath("$.deleted").isEqualTo(true)
-        assertThatJson(text).inPath("$.id").isEqualTo(33645)
+        assertThatJson(text).inPath("$.status").isEqualTo("OK")
+    }
+
+    @Test
+    fun `deleteTransaction surfaces isError when client throws (non-OK status)`() = runTest {
+        // BuxferClient.deleteTransaction throws BuxferApiException when the API
+        // returns a non-OK status; the tool's runCatching converts that into
+        // isError=true so the LLM sees the failure.
+        coEvery { mockClient.deleteTransaction(33645) } throws
+            BuxferApiException("transaction_delete returned non-OK status: failed")
+        val args: JsonObject = buildJsonObject { put("id", 33645) }
+
+        val result = tools.deleteTransaction(args)
+
+        assertThat(result.isError).isTrue()
+        assertThat((result.content[0] as TextContent).text).contains("non-OK status")
     }
 
     @Test

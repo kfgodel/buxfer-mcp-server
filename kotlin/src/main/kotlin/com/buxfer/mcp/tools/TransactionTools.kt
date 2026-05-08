@@ -115,8 +115,13 @@ class TransactionTools(private val client: BuxferClient) {
     suspend fun deleteTransaction(args: JsonObject?): CallToolResult = runCatching {
         logToolEntry("buxfer_delete_transaction", args)
         val id = args.requireInt("id")
-        client.deleteTransaction(id)
-        CallToolResult(content = listOf(TextContent("{\"deleted\":true,\"id\":$id}")))
+        // Forward Buxfer's actual response body (typically `{"status":"OK"}`). No
+        // synthesis: the previous version hardcoded `{"deleted":true,"id":<id>}`,
+        // which lied about what the API returned. Non-OK status is already turned
+        // into a thrown BuxferApiException by client.deleteTransaction and lands
+        // here as isError=true via the `runCatching` catch block.
+        val body = client.deleteTransaction(id)
+        CallToolResult(content = listOf(TextContent(buxferJson.encodeToString(body))))
     }.getOrElse { e ->
         log.error("tool=buxfer_delete_transaction failed", e)
         CallToolResult(content = listOf(TextContent("Error: ${e.message}")), isError = true)
