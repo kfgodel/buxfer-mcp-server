@@ -256,8 +256,8 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
                 append("amount", params.amount.toString())
                 append("accountId", params.accountId.toString())
                 append("date", params.date)
+                append("type", params.type)
                 params.tags?.let { append("tags", it) }
-                params.type?.let { append("type", it) }
                 params.status?.let { append("status", it) }
             }))
         }
@@ -276,8 +276,8 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
                     append("amount", params.amount.toString())
                     append("accountId", params.accountId.toString())
                     append("date", params.date)
+                    append("type", params.type)
                     params.tags?.let { append("tags", it) }
-                    params.type?.let { append("type", it) }
                     params.status?.let { append("status", it) }
                 }))
             }
