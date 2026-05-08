@@ -4,9 +4,12 @@ import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.cio.CIO
 
 /**
- * Configuration for [BuxferClient]. Reads from environment variables when constructed
- * with defaults, so callers ([Main][com.buxfer.mcp.Main], tests) do not need to
- * inspect env vars themselves.
+ * Configuration for [BuxferClient]. Holds plain values — env-var resolution
+ * (from `.env` or the OS environment) lives entirely in
+ * [com.buxfer.mcp.Env], which produces a [com.buxfer.mcp.BuxferMcpConfig]
+ * that callers thread through to construct this config. Keeping all
+ * env / properties handling in one place avoids two layers of fallback
+ * logic disagreeing.
  *
  * Not a data class: [engine] is a resource — copy() semantics and structural equality
  * on a live HTTP engine are not meaningful.
@@ -16,9 +19,7 @@ import io.ktor.client.engine.cio.CIO
  * without them, an MCP tool invocation could block indefinitely.
  */
 class BuxferClientConfig(
-    val baseUrl: String = System.getenv("BUXFER_API_BASE_URL")
-        ?.takeIf { it.isNotBlank() }
-        ?: DEFAULT_BASE_URL,
+    val baseUrl: String = DEFAULT_BASE_URL,
     val engine: HttpClientEngine = CIO.create(),
     val connectTimeoutMillis: Long = DEFAULT_CONNECT_TIMEOUT_MS,
     val requestTimeoutMillis: Long = DEFAULT_REQUEST_TIMEOUT_MS,

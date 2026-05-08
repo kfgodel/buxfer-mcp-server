@@ -24,6 +24,7 @@ repositories {
 
 val ktorVersion = "3.2.0"
 val mcpSdkVersion = "0.11.1"
+val kotlinLoggingVersion = "8.0.01"  // align with the version the MCP SDK pulls in transitively
 val serializationVersion = "1.9.0"
 val junitVersion = "5.14.4"
 val mockkVersion = "1.14.9"
@@ -50,6 +51,11 @@ dependencies {
     // No ConsoleAppender in production: stdout is the MCP stdio transport and any output corrupts JSON-RPC frames.
     // Pulls in slf4j-api 2.0.x transitively; do not pin slf4j-api separately.
     implementation("ch.qos.logback:logback-classic:1.5.18")
+
+    // Direct dependency on kotlin-logging (already pulled in transitively by the MCP SDK) so we
+    // can suppress its `KotlinLogging.<clinit>` startup println in Main.kt — that println goes to
+    // System.out and corrupts the MCP stdio transport's first JSON-RPC frame.
+    implementation("io.github.oshai:kotlin-logging-jvm:$kotlinLoggingVersion")
 
     // Test
     testImplementation("org.junit.jupiter:junit-jupiter:$junitVersion")
