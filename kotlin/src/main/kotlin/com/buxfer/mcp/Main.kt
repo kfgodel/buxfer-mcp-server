@@ -1,6 +1,7 @@
 package com.buxfer.mcp
 
 import com.buxfer.mcp.api.BuxferClient
+import com.buxfer.mcp.api.BuxferClientConfig
 import io.github.oshai.kotlinlogging.KotlinLoggingConfiguration
 import kotlin.system.exitProcess
 import kotlinx.coroutines.runBlocking
@@ -33,24 +34,20 @@ fun main(args: Array<String>) {
     KotlinLoggingConfiguration.logStartupMessage = false
 
     // Load .env BEFORE first SLF4J call so Logback's property substitution
-    // sees BUXFER_LOG_DIR / BUXFER_LOG_LEVEL when it initializes.
-    val config = try {
-        Env.load(args)
-    } catch (e: IllegalStateException) {
-        // No logger yet — go straight to stderr + exit. We deliberately do
-        // not call fatal() here because doing so would acquire a logger
-        // (triggering Logback init) before we know whether BUXFER_LOG_DIR
-        // is even pointing somewhere writable.
-        System.err.println("Startup failed: ${e.message}")
-        exitProcess(1)
-    }
+    // sees BUXFER_LOG_DIR / BUXFER_LOG_LEVEL when it initializes. On bad
+    // startup config, Env.load throws IllegalStateException and we let it
+    // propagate — the JVM's default uncaught-exception handler writes it to
+    // stderr and exits 1. We don't try to log it via Logback because that
+    // would force Logback init before we know whether BUXFER_LOG_DIR
+    // points anywhere writable.
+    val config = Env.load(args)
 
     val log = LoggerFactory.getLogger("com.buxfer.mcp.Main")
     log.info("Buxfer MCP server starting (config from {})", config.sourcePath)
 
     try {
         runBlocking {
-            BuxferClient().use { client ->
+            BuxferClient(buildClientConfig(config)).use { client ->
                 client.login(config.email, config.password)
                 log.info("Login OK; starting MCP server")
                 BuxferMcpServer(client).start()
@@ -65,6 +62,18 @@ fun main(args: Array<String>) {
         fatal(log, "Fatal: ${e.message}", e)
     }
 }
+
+/**
+ * Build a [BuxferClientConfig] from [config], threading any `.env`-derived
+ * overrides through as constructor arguments. Falling back to
+ * [BuxferClientConfig]'s own defaults when the [BuxferMcpConfig] field is
+ * null keeps the override semantics exactly the same as before but moves
+ * env-var lookup out of the HTTP-config layer.
+ */
+private fun buildClientConfig(config: BuxferMcpConfig): BuxferClientConfig =
+    BuxferClientConfig(
+        baseUrl = config.apiBaseUrl ?: BuxferClientConfig.DEFAULT_BASE_URL,
+    )
 
 /**
  * Surface a fatal startup/runtime error and terminate.

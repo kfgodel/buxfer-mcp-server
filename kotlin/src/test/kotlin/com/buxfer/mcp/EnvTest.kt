@@ -10,10 +10,14 @@ import org.junit.jupiter.api.io.TempDir
 
 /**
  * Tests for [Env] — loads a `.env` file (Java [java.util.Properties] format)
- * into a typed [BuxferMcpConfig] and pushes its entries into JVM system
- * properties so Logback's `${BUXFER_LOG_DIR}` substitution and downstream
- * `System.getProperty` lookups in [com.buxfer.mcp.api.BuxferClientConfig]
- * resolve correctly.
+ * into a typed [BuxferMcpConfig], bridging only the two Logback substitution
+ * keys (`BUXFER_LOG_DIR`, `BUXFER_LOG_LEVEL`) into JVM system properties so
+ * `logback.xml`'s `${VAR}` resolution sees them. Every other value flows
+ * through the returned [BuxferMcpConfig].
+ *
+ * Misconfiguration surfaces as [IllegalStateException]; the JVM's default
+ * uncaught-exception handler in production is what turns those into a
+ * stderr message + exit 1. Process management is not Env's concern.
  *
  * All tests use `--env-file=<path>` against a temp file so they don't depend
  * on what's in the working directory's `.env` at test time.
@@ -81,40 +85,50 @@ class EnvTest {
     }
 
     @Test
-    fun `load pushes file entries into system properties`(@TempDir tmp: File) {
-        val key = uniqueKey("PUSH")
-        rememberKeys("BUXFER_EMAIL", "BUXFER_PASSWORD", key)
+    fun `load bridges only Logback substitution keys to system properties`(@TempDir tmp: File) {
+        rememberKeys(
+            "BUXFER_EMAIL", "BUXFER_PASSWORD",
+            "BUXFER_LOG_DIR", "BUXFER_LOG_LEVEL",
+            "BUXFER_API_BASE_URL",
+        )
         val envFile = writeEnv(
             tmp,
             """
             BUXFER_EMAIL=user@example.test
             BUXFER_PASSWORD=secret
-            $key=via-env-file
+            BUXFER_API_BASE_URL=https://staging.buxfer.test/api
+            BUXFER_LOG_DIR=/tmp/buxfer-logs
+            BUXFER_LOG_LEVEL=DEBUG
             """.trimIndent()
         )
 
         Env.load(arrayOf("--env-file=${envFile.absolutePath}"))
 
-        assertThat(System.getProperty(key)).isEqualTo("via-env-file")
+        // Bridged: logback.xml's ${VAR} substitution needs these as system properties.
+        assertThat(System.getProperty("BUXFER_LOG_DIR")).isEqualTo("/tmp/buxfer-logs")
+        assertThat(System.getProperty("BUXFER_LOG_LEVEL")).isEqualTo("DEBUG")
+        // Not bridged: these flow through BuxferMcpConfig fields only.
+        assertThat(System.getProperty("BUXFER_EMAIL")).isNull()
+        assertThat(System.getProperty("BUXFER_PASSWORD")).isNull()
+        assertThat(System.getProperty("BUXFER_API_BASE_URL")).isNull()
     }
 
     @Test
-    fun `load preserves existing system properties (real env wins)`(@TempDir tmp: File) {
-        val key = uniqueKey("PRESERVE")
-        rememberKeys("BUXFER_EMAIL", "BUXFER_PASSWORD", key)
-        System.setProperty(key, "set-before-load")
+    fun `load preserves an already-set Logback system property (real env wins)`(@TempDir tmp: File) {
+        rememberKeys("BUXFER_EMAIL", "BUXFER_PASSWORD", "BUXFER_LOG_DIR")
+        System.setProperty("BUXFER_LOG_DIR", "/preset/by/launcher")
         val envFile = writeEnv(
             tmp,
             """
             BUXFER_EMAIL=user@example.test
             BUXFER_PASSWORD=secret
-            $key=should-not-overwrite
+            BUXFER_LOG_DIR=/from/env/file
             """.trimIndent()
         )
 
         Env.load(arrayOf("--env-file=${envFile.absolutePath}"))
 
-        assertThat(System.getProperty(key)).isEqualTo("set-before-load")
+        assertThat(System.getProperty("BUXFER_LOG_DIR")).isEqualTo("/preset/by/launcher")
     }
 
     @Test
@@ -183,9 +197,6 @@ class EnvTest {
 
     private fun writeEnv(dir: File, content: String): File =
         dir.resolve(".env").apply { writeText(content) }
-
-    private fun uniqueKey(suffix: String): String =
-        "BUXFER_TEST_${System.nanoTime()}_$suffix"
 
     private fun rememberKeys(vararg keys: String) {
         touchedKeys.addAll(keys)

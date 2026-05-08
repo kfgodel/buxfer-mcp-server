@@ -22,28 +22,39 @@ import java.util.Properties
  * trimmed. Backslashes are escape characters per the Properties spec — values
  * with literal backslashes must double them (`\\`). Quoting is **not** stripped.
  *
- * ## Side effect: system properties
+ * ## Side effect: Logback substitution bridge
  *
- * Every entry from the file is also pushed into JVM system properties via
- * [System.setProperty], unless the key is already set in either system
- * properties or the OS environment (real env wins). This is what lets
- * `logback.xml`'s `${BUXFER_LOG_DIR}` / `${BUXFER_LOG_LEVEL}` substitution
- * resolve correctly — Logback reads system properties at first-logger-call
- * time, which is why callers must invoke [load] before acquiring any SLF4J
- * logger.
+ * Two keys — `BUXFER_LOG_DIR` and `BUXFER_LOG_LEVEL` — are also pushed into
+ * JVM system properties via [System.setProperty] (unless already set in
+ * either system properties or the OS environment; real env wins). This is
+ * the only way to feed values into Logback's `${VAR}` substitution in
+ * `logback.xml`, which is a string-template lookup performed at logger
+ * initialization. Logback initializes on the first `LoggerFactory.getLogger(...)`
+ * call, so callers must invoke [load] before acquiring any SLF4J logger.
  *
- * The system-property push also keeps [com.buxfer.mcp.api.BuxferClientConfig]
- * happy: its `BUXFER_API_BASE_URL` lookup hits `System.getProperty` first.
+ * Every other value (credentials, API base URL) is returned via
+ * [BuxferMcpConfig] and passed directly to its destination by the caller.
+ * No other system-property side effects.
  */
 object Env {
 
     /**
-     * Parse [args], read the env file, populate system properties, and return
-     * the typed [BuxferMcpConfig].
+     * Keys that Logback's `logback.xml` substitution depends on. These are
+     * the only entries [load] copies into JVM system properties — every
+     * other value flows through [BuxferMcpConfig].
+     */
+    private val LOGBACK_BRIDGE_KEYS = setOf("BUXFER_LOG_DIR", "BUXFER_LOG_LEVEL")
+
+    /**
+     * Parse [args], read the env file, bridge Logback keys to system
+     * properties, and return the typed [BuxferMcpConfig].
      *
      * @throws IllegalStateException when the env file is missing, an unknown
      *   CLI argument is supplied, or a required key (`BUXFER_EMAIL`,
      *   `BUXFER_PASSWORD`) is absent from both the file and the OS environment.
+     *   The caller (typically [Main][com.buxfer.mcp.Main]) lets it propagate
+     *   so the JVM's default uncaught-exception handler prints it on stderr
+     *   and exits with code 1 — process management is not Env's concern.
      */
     fun load(args: Array<String> = emptyArray()): BuxferMcpConfig {
         val explicitPath = parseEnvFileArg(args)
@@ -53,7 +64,7 @@ object Env {
         }
 
         val props = Properties().apply { file.reader().use { load(it) } }
-        applyToSystemProperties(props)
+        bridgeLogbackKeysToSystemProperties(props)
 
         return BuxferMcpConfig(
             email = readRequired(props, "BUXFER_EMAIL"),
@@ -81,15 +92,24 @@ object Env {
     }
 
     /**
-     * Promote each file entry into JVM system properties unless the key is
-     * already set in the OS environment or system properties. Real env always
-     * wins over the file — standard precedence.
+     * Bridge the two Logback substitution keys from the file into JVM system
+     * properties so `logback.xml`'s `${BUXFER_LOG_DIR}` / `${BUXFER_LOG_LEVEL}`
+     * resolves at logger init.
+     *
+     * This is the only system-property side effect Env produces. Other
+     * values flow through [BuxferMcpConfig] and are passed directly by the
+     * caller — keeping config-as-arguments the rule, with this narrow
+     * exception for the one mechanism (Logback's XML substitution) that
+     * isn't programmable.
+     *
+     * Real env or pre-set system properties always win.
      */
-    private fun applyToSystemProperties(props: Properties) {
-        for (key in props.stringPropertyNames()) {
+    private fun bridgeLogbackKeysToSystemProperties(props: Properties) {
+        for (key in LOGBACK_BRIDGE_KEYS) {
             if (System.getProperty(key) != null) continue
             if (System.getenv(key) != null) continue
-            System.setProperty(key, props.getProperty(key))
+            val value = props.getProperty(key) ?: continue
+            System.setProperty(key, value)
         }
     }
 
