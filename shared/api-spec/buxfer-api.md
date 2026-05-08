@@ -2,6 +2,14 @@
 
 Source: https://www.buxfer.com/help/api
 
+> **Live API divergences are annotated inline.** During end-to-end verification
+> (2026-05-08) several endpoints were observed to behave differently from the
+> upstream documentation linked above. Each divergence is captured under a
+> `> **Live API divergence**` callout in the affected section, with the actual
+> wire shape we received and a deep link to the exact upstream subsection it
+> contradicts. Implementations should treat the callouts as the ground truth
+> and the surrounding spec text as the upstream's stated intent.
+
 ## Base URL
 
 ```
@@ -95,6 +103,12 @@ List transactions with optional filters. Returns up to **100 transactions per pa
 }
 ```
 
+> **Live API divergence (verified 2026-05-08)** vs [upstream `transactions` section](https://www.buxfer.com/help/api#transactions):
+> `numTransactions` is returned as a JSON **string**, not a number. Observed:
+> `"numTransactions": "28753"`. Models in this repo (`Transactions.kt`) already
+> declare it as `String` per a captured fixture; only this spec document said
+> `int`.
+
 ---
 
 ### `POST /api/transaction_add`
@@ -110,8 +124,13 @@ Add a new transaction.
 | accountId   | int    | yes      | Account to post to                                            |
 | date        | string | yes      | Date in `YYYY-MM-DD` format                                   |
 | tags        | string | no       | Comma-separated tag names                                     |
-| type        | string | no       | See Transaction Types below (default: `expense`)              |
+| type        | string | yes¹     | See Transaction Types below                                   |
 | status      | string | no       | `pending`, `cleared`, or `reconciled`                         |
+
+> **Live API divergence (verified 2026-05-08)** vs [upstream `transaction_add` section](https://www.buxfer.com/help/api#transaction_add):
+> ¹ `type` is documented as optional (default `expense`) but the live API
+> rejects requests without it with `HTTP 400: {"error":{"type":"client","message":"Missing value for parameter [type]"}}`.
+> Treat `type` as **required**.
 
 **Shared bill extra fields** (when `type = sharedBill`)
 
@@ -143,6 +162,30 @@ Add a new transaction.
   "transaction": { /* Transaction object */ }
 }
 ```
+
+> **Live API divergence (verified 2026-05-08)** vs [upstream `transaction_add` section](https://www.buxfer.com/help/api#transaction_add):
+> the response is the **bare Transaction object**, not the documented
+> `{status, transaction}` envelope. Observed payload (after the standard
+> `response` unwrap):
+>
+> ```json
+> {
+>   "id": 240160724,
+>   "description": "Test from MCP",
+>   "date": "2026-05-08",
+>   "type": "expense",
+>   "transactionType": "expense",
+>   "amount": 0.01,
+>   "expenseAmount": 0.01,
+>   "accountId": 205346,
+>   "accountName": "Bolsillo",
+>   "tags": "",
+>   "tagNames": [],
+>   "status": "cleared",
+>   "isFutureDated": false,
+>   "isPending": false
+> }
+> ```
 
 ---
 
@@ -182,6 +225,15 @@ Delete a transaction.
 ```json
 { "status": "OK" }
 ```
+
+> **Live API divergence (verified 2026-05-08)** vs [upstream `transaction_delete` section](https://www.buxfer.com/help/api#transaction_delete):
+> the response (after the standard `response` unwrap) is
+> `{"deleted": <bool>, "id": <int>}`, not the documented `{"status": "OK"}`
+> shape. Observed payload:
+>
+> ```json
+> { "deleted": true, "id": 240160724 }
+> ```
 
 ---
 
