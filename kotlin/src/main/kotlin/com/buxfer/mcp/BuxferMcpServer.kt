@@ -15,6 +15,7 @@ import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
 import io.modelcontextprotocol.kotlin.sdk.shared.Transport
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
@@ -112,12 +113,31 @@ class BuxferMcpServer(client: BuxferClient) {
         )
     )
 
+    /**
+     * Open an MCP session on [transport] and suspend until the session closes
+     * (transport EOF, peer disconnect, or unrecoverable error).
+     *
+     * Suspending here is what keeps the JVM alive when launched as a stdio MCP
+     * server: [io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport]
+     * launches its read/write/process coroutines on its own internal scope and
+     * `Server.createSession` returns immediately. Without an explicit await,
+     * `Main`'s `runBlocking` would unwind before any client frame arrives and
+     * the process would exit, manifesting in Claude Code as
+     * "Failed to connect".
+     *
+     * Tests that drive the lifecycle externally (e.g. via `ChannelTransport`
+     * inside `runTest`) wrap this call in `launch { … }`; their `TestScope`
+     * cancels the launched job when the client closes its end of the pair.
+     */
     suspend fun start(transport: Transport) {
         val session = server.createSession(transport)
         // Log session id so start/close lines can be paired in operator debugging.
         log.info("MCP session started: id={} transport={}", session.sessionId, transport::class.simpleName)
+        val sessionClosed = CompletableDeferred<Unit>()
         session.onClose {
             log.info("MCP session closed: id={}", session.sessionId)
+            sessionClosed.complete(Unit)
         }
+        sessionClosed.await()
     }
 }
