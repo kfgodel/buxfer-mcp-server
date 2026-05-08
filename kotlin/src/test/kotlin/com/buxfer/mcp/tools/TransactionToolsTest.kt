@@ -108,6 +108,7 @@ class TransactionToolsTest {
             put("amount", 0.01)
             put("accountId", 10350)
             put("date", "2026-04-26")
+            put("type", "expense")
         }
 
         val result = tools.addTransaction(args)
@@ -129,6 +130,7 @@ class TransactionToolsTest {
             put("amount", 0.01)
             put("accountId", 10350)
             put("date", "2026-04-26")
+            put("type", "expense")
         }
 
         val result = tools.editTransaction(args)
@@ -207,12 +209,30 @@ class TransactionToolsTest {
             put("amount", 0.01)
             put("accountId", 10350)
             put("date", "2026-04-26")
+            put("type", "expense")
         }
 
         val result = tools.addTransaction(args)
 
         assertThat(result.isError).isTrue()
         assertThat((result.content[0] as TextContent).text).contains("'description'")
+    }
+
+    @Test
+    fun `addTransaction surfaces isError when type is missing`() = runTest {
+        // type is documented upstream as optional with default 'expense' but the live
+        // API rejects requests without it (HTTP 400). See AddTransactionParams.kt.
+        val args: JsonObject = buildJsonObject {
+            put("description", "Test Transaction")
+            put("amount", 0.01)
+            put("accountId", 10350)
+            put("date", "2026-04-26")
+        }
+
+        val result = tools.addTransaction(args)
+
+        assertThat(result.isError).isTrue()
+        assertThat((result.content[0] as TextContent).text).contains("'type'")
     }
 
     @Test

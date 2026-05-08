@@ -114,7 +114,13 @@ class BuxferClientTest {
     @Test
     fun `addTransaction returns JsonObject of created transaction`() = runTest {
         val tx = client.addTransaction(
-            AddTransactionParams("Test Transaction", 0.01, 10350, "2026-04-26")
+            AddTransactionParams(
+                description = "Test Transaction",
+                amount = 0.01,
+                accountId = 10350,
+                date = "2026-04-26",
+                type = "expense",
+            )
         )
         val text = tx.toString()
         assertThatJson(text).inPath("$.id").isEqualTo(33645)
@@ -125,7 +131,13 @@ class BuxferClientTest {
     fun `editTransaction returns JsonObject of updated transaction`() = runTest {
         val tx = client.editTransaction(
             33645,
-            AddTransactionParams("Test Transaction (edited)", 0.01, 10350, "2026-04-26")
+            AddTransactionParams(
+                description = "Test Transaction (edited)",
+                amount = 0.01,
+                accountId = 10350,
+                date = "2026-04-26",
+                type = "expense",
+            )
         )
         val text = tx.toString()
         assertThatJson(text).inPath("$.id").isEqualTo(33645)

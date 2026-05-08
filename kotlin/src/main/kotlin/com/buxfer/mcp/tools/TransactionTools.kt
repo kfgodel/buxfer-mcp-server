@@ -82,9 +82,9 @@ class TransactionTools(private val client: BuxferClient) {
             amount = args.requireDouble("amount"),
             accountId = args.requireInt("accountId"),
             date = args.requireString("date"),
+            type = args.requireString("type"),
             tags = args.optString("tags"),
-            type = args.optString("type"),
-            status = args.optString("status")
+            status = args.optString("status"),
         )
         val tx = client.addTransaction(params)
         CallToolResult(content = listOf(TextContent(buxferJson.encodeToString(tx))))
@@ -101,9 +101,9 @@ class TransactionTools(private val client: BuxferClient) {
             amount = args.requireDouble("amount"),
             accountId = args.requireInt("accountId"),
             date = args.requireString("date"),
+            type = args.requireString("type"),
             tags = args.optString("tags"),
-            type = args.optString("type"),
-            status = args.optString("status")
+            status = args.optString("status"),
         )
         val tx = client.editTransaction(id, params)
         CallToolResult(content = listOf(TextContent(buxferJson.encodeToString(tx))))

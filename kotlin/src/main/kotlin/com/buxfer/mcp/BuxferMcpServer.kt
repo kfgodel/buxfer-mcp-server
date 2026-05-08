@@ -52,12 +52,12 @@ class BuxferMcpServer(client: BuxferClient) {
 
         addTool(
             name = "buxfer_add_transaction",
-            description = "Add a Buxfer transaction. Required: description, amount, accountId, date. Optional: tags, type, status."
+            description = "Add a Buxfer transaction. Required: description, amount, accountId, date, type. Optional: tags, status."
         ) { request -> transactionTools.addTransaction(request.arguments) }
 
         addTool(
             name = "buxfer_edit_transaction",
-            description = "Edit a Buxfer transaction by id. Required: id, description, amount, accountId, date. Optional: tags, type, status."
+            description = "Edit a Buxfer transaction by id. Required: id, description, amount, accountId, date, type. Optional: tags, status."
         ) { request -> transactionTools.editTransaction(request.arguments) }
 
         addTool(

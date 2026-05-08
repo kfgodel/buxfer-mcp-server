@@ -151,7 +151,8 @@ class BuxferMcpServerIntegrationTest {
             "description" to "Test Transaction",
             "amount" to 0.01,
             "accountId" to 10350,
-            "date" to "2026-04-26"
+            "date" to "2026-04-26",
+            "type" to "expense",
         ))
 
         // Exercises the POST/form path of BuxferClient end-to-end through MCP.

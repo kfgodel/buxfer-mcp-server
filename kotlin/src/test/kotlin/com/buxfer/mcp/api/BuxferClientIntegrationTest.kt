@@ -95,7 +95,15 @@ class BuxferClientIntegrationTest {
 
     @Test
     fun `addTransaction posts form data and returns the created transaction`() = runTest {
-        val tx = client.addTransaction(AddTransactionParams("Test Transaction", 0.01, 10350, "2026-04-26"))
+        val tx = client.addTransaction(
+            AddTransactionParams(
+                description = "Test Transaction",
+                amount = 0.01,
+                accountId = 10350,
+                date = "2026-04-26",
+                type = "expense",
+            )
+        )
         assertThatJson(tx.toString()).inPath("$.id").isEqualTo(33645)
     }
 
@@ -103,7 +111,13 @@ class BuxferClientIntegrationTest {
     fun `editTransaction posts form data and returns the updated transaction`() = runTest {
         val tx = client.editTransaction(
             33645,
-            AddTransactionParams("Test Transaction (edited)", 0.01, 10350, "2026-04-26")
+            AddTransactionParams(
+                description = "Test Transaction (edited)",
+                amount = 0.01,
+                accountId = 10350,
+                date = "2026-04-26",
+                type = "expense",
+            )
         )
         assertThatJson(tx.toString()).inPath("$.id").isEqualTo(33645)
     }
