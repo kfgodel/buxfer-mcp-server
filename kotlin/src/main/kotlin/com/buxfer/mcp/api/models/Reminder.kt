@@ -7,10 +7,11 @@ import kotlinx.serialization.Serializable
  * to log warnings when Buxfer's response shape changes; not held as data anywhere — the data
  * path forwards the raw `JsonArray` to Claude.
  *
- * Three nullability tiers (per the convention in IMPROVEMENT_PLAN.md):
+ * Three nullability tiers (per the convention in `kotlin/CLAUDE.md`):
  * - **Required** (key + non-null value, fixture-always-present): `id`, `name`, `description`,
  *   `startDate`, `periodUnit`, `periodSize`, `amount`, `accountId`, `nextExecution`,
- *   `dueDateDescription`, `numDaysForDueDate`, `tags`, `editMode`, `type`, `transactionType`.
+ *   `dueDateDescription`, `numDaysForDueDate`, `tags`, `editMode`, `type`, `transactionType`,
+ *   `account`.
  * - **Required key, nullable value** (`String?` with no default — key always present in the
  *   fixture, value is `null`): `stopDate`. Absence of the key would be drift.
  * - **Optional, spec-only** (`Type? = null` — documented but never seen in captured
@@ -23,6 +24,12 @@ import kotlinx.serialization.Serializable
  * `transactionType` an integer code (3 in every observed record). Buxfer chose to send both;
  * we trust the fixture and require both. If one ever stops being sent, the validator surfaces
  * it as drift.
+ *
+ * Note on `account`: Buxfer inlines a full account object (richer than the `/accounts`
+ * summary view) on every reminder. Modelled as [EmbeddedAccount] rather than [Account]
+ * because the shape differs — `bank` is a structured object here, not a string. See the
+ * KDoc on [EmbeddedAccount] for the difference between Buxfer's three account
+ * representations.
  */
 @Serializable
 data class Reminder(
@@ -42,5 +49,6 @@ data class Reminder(
     val type: String,
     val transactionType: Int,
     val stopDate: String?,
+    val account: EmbeddedAccount,
     val period: String? = null,
 )

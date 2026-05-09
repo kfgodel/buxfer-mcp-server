@@ -219,6 +219,35 @@ class BuxferClientTest {
     }
 
     @Test
+    fun `getReminders forwards the nested account object including its bank`() = runTest {
+        // Locks in the EmbeddedAccount + Bank schemas. Buxfer inlines a richer account
+        // representation here than in /accounts (bank is an object, not a string), and
+        // emits this object on every reminder.
+        val reminders = client.getReminders()
+        val text = reminders.toString()
+
+        // Reminder 1 — USD-denominated account, includes optional `currency`
+        assertThatJson(text).inPath("$[0].account.id").isEqualTo(13872)
+        assertThatJson(text).inPath("$[0].account.name").isEqualTo("Test Account 13872")
+        assertThatJson(text).inPath("$[0].account.type").isEqualTo(1)
+        assertThatJson(text).inPath("$[0].account.typeName").isEqualTo("191 Bancos US")
+        assertThatJson(text).inPath("$[0].account.currency").isEqualTo("USD")
+        assertThatJson(text).inPath("$[0].account.balance").isEqualTo(885.01)
+        assertThatJson(text).inPath("$[0].account.isInvestmentType").isEqualTo(false)
+        // Nested Bank — required Tier 1 fields and Tier 2 (`null`) syncProvider
+        assertThatJson(text).inPath("$[0].account.bank.id").isEqualTo(2)
+        assertThatJson(text).inPath("$[0].account.bank.name").isEqualTo("Test Bank")
+        assertThatJson(text).inPath("$[0].account.bank.canSync").isEqualTo(false)
+        assertThatJson(text).inPath("$[0].account.bank.syncProvider").isNull()
+        assertThatJson(text).inPath("$[0].account.bank.migrationTargetBankId").isNull()
+
+        // Reminder 2 — local-currency account, `currency` key absent (Tier 3 branch)
+        assertThatJson(text).inPath("$[1].account.id").isEqualTo(605)
+        assertThatJson(text).inPath("$[1].account.typeName").isEqualTo("01 Tarjetas ARS")
+        assertThatJson(text).inPath("$[1].account").isObject.doesNotContainKey("currency")
+    }
+
+    @Test
     fun `getGroups returns empty JsonArray from fixture`() = runTest {
         val groups = client.getGroups()
         assertThat(groups).isEmpty()
