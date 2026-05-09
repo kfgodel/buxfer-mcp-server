@@ -12,7 +12,7 @@ import kotlinx.serialization.Serializable
  * declared nullable so the schema stays forward-compatible without firing warnings on their
  * absence.
  *
- * Three nullability tiers (per the convention in IMPROVEMENT_PLAN.md):
+ * Three nullability tiers (per the convention in `kotlin/CLAUDE.md`):
  * - **Required** (key + non-null value, fixture-always-present): `id`, `name`, `limit`,
  *   `spent`, `balance`, `period`, `periodUnit`, `editMode`, `periodSize`, `startDate`,
  *   `budgetId`, `type`, `tagId`, `tag`, `isRolledOver`, `eventId`.

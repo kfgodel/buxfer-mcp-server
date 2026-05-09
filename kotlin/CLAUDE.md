@@ -1,16 +1,12 @@
 # Buxfer MCP Server — Kotlin Implementation
 
-## Overview
-
-A Kotlin/JVM implementation of the Buxfer MCP server. Uses the official [MCP Kotlin SDK](https://github.com/modelcontextprotocol/kotlin-sdk) and [Ktor](https://ktor.io/) for HTTP calls to the Buxfer REST API.
-
-## Open work
-
-- **Test the MCP server end-to-end** — wire it into Claude Desktop / Claude Code and verify each registered tool (`buxfer_list_accounts`, `buxfer_list_transactions`, `buxfer_add_transaction`, …) responds correctly against a real Buxfer account. The integration tests prove the wire shape against captured fixtures, but a live verification confirms the SDK bootstrap, stdio transport, env-var configuration, and tool-registration story end-to-end. See `## Claude Desktop Integration` below for the config snippet.
+A Kotlin/JVM implementation of the Buxfer MCP server. Uses the official
+[MCP Kotlin SDK](https://github.com/modelcontextprotocol/kotlin-sdk) and
+[Ktor](https://ktor.io/) for HTTP calls to the Buxfer REST API.
 
 ## Conventions
 
-These crystallised during the multi-session refactor that brought this module to its current shape (92 tests green; data path forwards raw Buxfer JSON to Claude with side-effect schema validation). Mirror them when adding new endpoints, models, or tests.
+Follow these when adding new endpoints, models, or tests.
 
 ### Three-tier nullability
 
@@ -45,7 +41,7 @@ Validation runs as a **side effect** via the `validateSchema<T>` helper in `Buxf
 - Any other exception → `log.error("Schema validation failed unexpectedly ...")`. Also never thrown.
 - The data path uses the production `buxferJson` (permissive `ignoreUnknownKeys = true`) and is never affected by validation outcomes.
 
-The shared `getValidatedList<Schema>(path)` helper handles the common shape (HTTP GET → envelope strip → array extract → validate → return). Endpoints with non-standard shapes (currently just `getTransactions` with its `transactions[]` + `numTransactions` wrapper, and the write endpoints with their `JsonObject` responses) inline the same pattern: HTTP, envelope strip, `validateSchema<Schema>(body, path)`, return body.
+The shared `getValidatedList<Schema>(path)` helper handles the common shape (HTTP GET → envelope strip → array extract → validate → return). Endpoints with non-standard shapes (currently `getTransactions` with its `transactions[]` + `numTransactions` wrapper, and the write endpoints with their `JsonObject` responses) inline the same pattern: HTTP, envelope strip, `validateSchema<Schema>(body, path)`, return body.
 
 ### Other invariants worth preserving
 
@@ -95,6 +91,13 @@ server.createSession(transport)  // suspend; returns ServerSession
 ```
 
 `StdioServerTransport` requires kotlinx-io `Source`/`Sink` — convert from `java.io.InputStream`/`OutputStream` with `asSource()`/`asSink()` from `kotlinx.io`.
+
+### SDK gotchas (things `hover` won't tell you)
+
+- **`ServerCapabilities()` no-args defaults `tools = null`**, which makes `Server.addTool(...)` throw `IllegalStateException: Server does not support tools capability`. Pass `ServerCapabilities(tools = ServerCapabilities.Tools())` to actually enable tool registration.
+- **No `InMemoryTransport` ships with the SDK** (verified in 0.11.1). A test that wants in-process server↔client wiring has to roll its own by extending `AbstractTransport` (override `start`/`send`/`close`; dispatch inbound messages by invoking `_onMessage`).
+- **`Server.createSession` returns immediately**; the transport's read/write coroutines run on its own internal `SupervisorJob` scope. `BuxferMcpServer.start` therefore suspends on a `CompletableDeferred<Unit>` completed by `session.onClose`, otherwise `Main`'s `runBlocking` would unwind before any client frame arrives and the JVM would exit with the MCP client reporting "Failed to connect".
+- **`KotlinLogging.<clinit>` writes a banner to `System.out`** the first time any code references it (the MCP SDK uses `KotlinLogging.logger { }` via top-level `val`s). That banner would corrupt MCP's first JSON-RPC frame. `Main.kt` flips `KotlinLoggingConfiguration.logStartupMessage = false` as its first executable statement to suppress it; `kotlin-logging-jvm` is therefore a direct dependency (it's already pulled in transitively by the MCP SDK; the direct entry just gives us compile-time access to the flag).
 
 ## Prerequisites
 
@@ -150,11 +153,6 @@ If LSP can't resolve a symbol (usually because the project hasn't compiled yet),
 
 Extract to a scratch dir and `Read` files normally. This should be rare.
 
-### SDK gotchas (things `hover` won't tell you)
-
-- **`ServerCapabilities()` no-args defaults `tools = null`**, which makes `Server.addTool(...)` throw `IllegalStateException: Server does not support tools capability`. Pass `ServerCapabilities(tools = ServerCapabilities.Tools())` to actually enable tool registration.
-- **No `InMemoryTransport` ships with the SDK** (verified in 0.11.1). A test that wants in-process server↔client wiring has to roll its own by extending `AbstractTransport` (override `start`/`send`/`close`; dispatch inbound messages by invoking `_onMessage`).
-
 ## Running Gradle
 
 Always use the ASDF shims so the correct Java and Gradle versions from `.tool-versions` are used:
@@ -166,7 +164,6 @@ PATH="$HOME/.asdf/shims:$PATH" gradle build
 PATH="$HOME/.asdf/shims:$PATH" gradle compileKotlin
 ```
 
-
 ## Project Structure
 
 ```
@@ -175,28 +172,18 @@ kotlin/
 ├── build.gradle.kts                    # Build config, dependencies
 ├── settings.gradle.kts                 # Project name
 └── src/main/kotlin/com/buxfer/mcp/
-    ├── Main.kt                         # Entry point — wires up and starts MCP server
-    ├── BuxferMcpServer.kt              # Server bootstrap, tool registration
+    ├── Main.kt                         # Entry point — Env.load → login → start MCP server
+    ├── Env.kt                          # Loads `.env` (or `--env-file=<path>`) into BuxferMcpConfig
+    ├── BuxferMcpConfig.kt              # Typed env-derived config (credentials, optional knobs)
+    ├── BuxferMcpServer.kt              # Server bootstrap, registers the 12 MCP tools
     ├── api/
-    │   ├── BuxferClient.kt             # Ktor HTTP client, token management
-    │   └── models/                     # Kotlinx.serialization data classes
-    │       ├── Transaction.kt
-    │       ├── Account.kt
-    │       ├── Tag.kt
-    │       ├── Budget.kt
-    │       ├── Reminder.kt
-    │       ├── Group.kt
-    │       ├── Contact.kt
-    │       └── Loan.kt
+    │   ├── BuxferClient.kt             # Ktor HTTP client, token management, response unwrap
+    │   ├── BuxferClientConfig.kt       # HTTP client settings (timeouts, base URL, engine)
+    │   ├── BuxferApiException.kt       # Wrapper for Buxfer API + transport failures
+    │   └── models/                     # @Serializable drift-detection schemas (one class per file)
     └── tools/
-        ├── TransactionTools.kt         # MCP tools: list/add/edit/delete/upload
-        ├── AccountTools.kt             # MCP tool: list accounts
-        ├── TagTools.kt                 # MCP tool: list tags
-        ├── BudgetTools.kt              # MCP tool: list budgets
-        ├── ReminderTools.kt            # MCP tool: list reminders
-        ├── GroupTools.kt               # MCP tool: list groups
-        ├── ContactTools.kt             # MCP tool: list contacts
-        └── LoanTools.kt                # MCP tool: list loans
+        ├── *Tools.kt                   # One class per Buxfer resource (Account, Tag, Transaction, ...)
+        └── JsonObjectExtensions.kt     # require* / opt* helpers for tool args
 ```
 
 ## Key Dependencies
@@ -210,48 +197,65 @@ See `build.gradle.kts` for pinned versions.
 | `io.ktor:ktor-client-content-negotiation`          | JSON content negotiation                                                   |
 | `io.ktor:ktor-serialization-kotlinx-json`          | JSON serialization via Ktor                                                |
 | `org.jetbrains.kotlinx:kotlinx-serialization-json` | Data class serialization                                                   |
-| `ch.qos.logback:logback-classic`                   | SLF4J binding; rolling-file logging — see `src/main/resources/logback.xml`. Never logs to stdout (the MCP transport); writes to `./logs/server.log` by default. Pulls in `slf4j-api` transitively. |
+| `ch.qos.logback:logback-classic`                   | SLF4J binding; rolling-file logging — see `src/main/resources/logback.xml`. Never logs to stdout (the MCP transport); writes to `${BUXFER_LOG_DIR:-./logs}/server.log`. |
+| `io.github.oshai:kotlin-logging-jvm`               | Pulled in transitively by the MCP SDK; declared as a direct dependency only so `Main.kt` can flip `KotlinLoggingConfiguration.logStartupMessage` before any SDK class triggers `KotlinLogging.<clinit>` (see SDK gotchas above). |
 
 ## Configuration
 
-The server reads credentials and operational settings from environment variables:
+Configuration is loaded from a `.env` file at startup by `Env.load`. By default
+the loader reads `./.env` (relative to the JVM's working directory); pass
+`--env-file=<path>` on the JVM command line to point at a different file. The
+loader populates a typed `BuxferMcpConfig` for the credentials and optional
+overrides, and also pushes `BUXFER_LOG_DIR` / `BUXFER_LOG_LEVEL` into JVM
+system properties so Logback's `${VAR}` substitution in `logback.xml` resolves
+correctly. Real OS env vars and `-D` system properties always win over the
+file (standard precedence).
 
-| Variable           | Required | Default   | Description                                                                                                                                                                            |
-|--------------------|----------|-----------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `BUXFER_EMAIL`     | yes      | —         | Buxfer account email. **Never logged** (PII / account identifier).                                                                                                                     |
-| `BUXFER_PASSWORD`  | yes      | —         | Buxfer account password. **Never logged**.                                                                                                                                             |
-| `BUXFER_LOG_DIR`      | no       | `./logs`                       | Directory the rolling log appender writes to (relative to the server's working directory). Resolved by `logback.xml`.                                                                  |
-| `BUXFER_LOG_LEVEL`    | no       | `INFO`                         | Logback root level. Lowering to `DEBUG` enables HTTP request/response logging in `BuxferClient` and per-arg value logging in tools (the always-redacted set — password, token, statement — stays redacted at every level). |
-| `BUXFER_API_BASE_URL` | no       | `https://www.buxfer.com/api`   | Buxfer REST API base URL. Override to point the client at a staging environment or local WireMock stub. Read by `BuxferClientConfig`. |
+| Variable           | Required | Default                       | Description                                                                                                                                                                            |
+|--------------------|----------|-------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `BUXFER_EMAIL`     | yes      | —                             | Buxfer account email. **Never logged** (PII / account identifier).                                                                                                                     |
+| `BUXFER_PASSWORD`  | yes      | —                             | Buxfer account password. **Never logged**.                                                                                                                                             |
+| `BUXFER_LOG_DIR`   | no       | `./logs`                      | Directory the rolling log appender writes to. **Resolved relative to the JVM's cwd at launch**, which is whatever directory the launching tool (Claude Code, Claude Desktop, a shell) happened to start from — not necessarily `kotlin/`. Set to an absolute path in `.env` if you want a stable location. |
+| `BUXFER_LOG_LEVEL` | no       | `INFO`                        | Logback root level. Lowering to `DEBUG` enables HTTP request/response logging in `BuxferClient` and per-arg value logging in tools (the always-redacted set — password, token, statement — stays redacted at every level). |
+| `BUXFER_API_BASE_URL` | no    | `https://www.buxfer.com/api`  | Buxfer REST API base URL. Override to point the client at a staging environment or local WireMock stub. Read by `BuxferClientConfig`.                                                  |
 
-**Adding new environment variables:** every new env var must be added as a commented example to the root `.env.example` file, following the existing comment style. This keeps the file the single reference an operator needs when configuring a fresh deployment.
+**Adding new environment variables:** every new env var must be added as a
+commented example to the root `.env.example` file, following the existing
+comment style. This keeps the file the single reference an operator needs
+when configuring a fresh deployment.
 
-For local development, set these in the root `.env` file and load it before running:
+On startup, `BuxferClient` calls `POST /api/login` and stores the returned
+token in memory. All subsequent tool calls inject this token.
 
-```bash
-# from kotlin/
-set -a && source ../.env && set +a
-gradle run
-```
-
-On startup, `BuxferClient` calls `POST /api/login` and stores the returned token in memory. All subsequent tool calls inject this token.
-
-**Do not log to stdout** — MCP communicates over stdio, and any stray stdout output breaks the protocol. The default `logback.xml` enforces this by configuring only a rolling file appender (no `ConsoleAppender`). `Main.kt` writes fatal startup errors to `stderr` (which is not part of the MCP transport) so the operator who launched the process sees them; the same messages also reach the log file via `log.error(...)`. Do not add any further `System.out.println` / `print` / `println` calls anywhere in production code.
+**Do not log to stdout** — MCP communicates over stdio, and any stray stdout
+output breaks the protocol. The default `logback.xml` enforces this by
+configuring only a rolling file appender (no `ConsoleAppender`). `Main.kt`
+writes fatal startup errors to `stderr` (which is not part of the MCP
+transport) so the operator who launched the process sees them. Do not add
+any `System.out.println` / `print` / `println` calls anywhere in production
+code.
 
 ## Building & Running
 
 ```bash
-# Build fat JAR
+# Build fat JAR (output at build/libs/buxfer-mcp-server-1.0-SNAPSHOT-all.jar)
 gradle shadowJar
 
-# Run directly (development)
+# Run directly (development; auto-loads ../.env from the kotlin/ cwd)
 gradle run
 
-# Run the fat JAR
-java -jar build/libs/buxfer-mcp-server-all.jar
+# Run the fat JAR (auto-loads ./.env, or pass --env-file=<path>)
+java -jar build/libs/buxfer-mcp-server-1.0-SNAPSHOT-all.jar
 ```
 
-## Claude Desktop Integration
+## Claude Desktop / Claude Code Integration
+
+Two practical notes for whichever launcher you use:
+
+- **Use an absolute Java path**, not the bare `java`. Claude Desktop / Claude Code launch the process with no guarantees about `PATH`, and ASDF shims need a `.tool-versions` file in the launch cwd to resolve the right version. The cleanest fix is the absolute path to the installed JDK (e.g. `~/.asdf/installs/java/<version>/bin/java`).
+- **Pass `--env-file=<absolute path>`** (or omit it and rely on `./.env` if you can guarantee the launch cwd is the repo root). Without one of those, the server will fail at startup because `BUXFER_EMAIL` / `BUXFER_PASSWORD` won't be found.
+
+### Claude Desktop
 
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
@@ -259,15 +263,24 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 {
   "mcpServers": {
     "buxfer": {
-      "command": "java",
-      "args": ["-jar", "/path/to/kotlin/build/libs/buxfer-mcp-server-all.jar"],
-      "env": {
-        "BUXFER_EMAIL": "your@email.com",
-        "BUXFER_PASSWORD": "yourpassword"
-      }
+      "command": "/path/to/your/jdk/bin/java",
+      "args": [
+        "-jar",
+        "/absolute/path/to/kotlin/build/libs/buxfer-mcp-server-1.0-SNAPSHOT-all.jar",
+        "--env-file=/absolute/path/to/.env"
+      ]
     }
   }
 }
+```
+
+### Claude Code
+
+```bash
+claude mcp add buxfer --scope local -- \
+  /path/to/your/jdk/bin/java \
+  -jar /absolute/path/to/kotlin/build/libs/buxfer-mcp-server-1.0-SNAPSHOT-all.jar \
+  --env-file=/absolute/path/to/.env
 ```
 
 ## Testing
@@ -287,23 +300,32 @@ gradle test
 | MockK                     | Kotlin-idiomatic mocking of `BuxferClient` in tool tests |
 | Ktor `ktor-client-mock`   | `MockEngine` for HTTP-level tests of `BuxferClient`      |
 | `kotlinx-coroutines-test` | `runTest` for testing `suspend` functions                |
+| AssertJ + json-unit       | JSON-shape assertions on tool results and HTTP bodies    |
+| WireMock                  | Real HTTP server for the integration suite               |
+| `kotlin-sdk-testing`      | In-process MCP client/server pair for end-to-end tests   |
 
 ### Test structure
 
 ```
 src/test/kotlin/com/buxfer/mcp/
-├── TestFixtureLoader.kt          # Loads JSON from shared/test-fixtures/wiremock/__files/
+├── EnvTest.kt                          # Env.load happy + failure paths
+├── BuxferMcpServerTest.kt              # Tool registration / descriptions
+├── BuxferMcpServerIntegrationTest.kt   # End-to-end via in-process MCP client + WireMock
+├── TestFixtureLoader.kt                # Reads JSON from shared/test-fixtures/wiremock/__files/
 ├── api/
-│   └── BuxferClientTest.kt       # HTTP-level: MockEngine + fixture JSON
+│   ├── BuxferClientTest.kt             # MockEngine + fixture JSON, deserialization checks
+│   ├── BuxferClientErrorHandlingTest.kt# 4xx/5xx, IOException, timeout, non-OK status
+│   ├── BuxferClientIntegrationTest.kt  # Real WireMock server, form-data assertions
+│   └── BuxferClientConfigTest.kt       # Defaults + override behaviour
 └── tools/
-    ├── TransactionToolsTest.kt   # Unit: MockK BuxferClient
-    ├── AccountToolsTest.kt
-    └── LookupToolsTest.kt
+    ├── *ToolsTest.kt                   # One file per tool class — MockK-backed
+    ├── McpToolTest.kt                  # Cross-tool error-result conventions
+    └── JsonObjectExtensionsTest.kt     # require* / opt* helpers
 ```
 
 ### Shared fixtures
 
-All tests load response JSON from `../shared/test-fixtures/wiremock/__files/` (path injected via the `fixtures.dir` system property in `build.gradle.kts`). The same fixture files are used by the TypeScript and Python implementations, so every language tests against an identical response contract. Fixture files are captured and anonymized by the language-agnostic `api-recordings/` module at the repo root — see `../shared/test-fixtures/CLAUDE.md` for the capture workflow.
+All tests load response JSON from `../shared/test-fixtures/wiremock/__files/` (path injected via the `fixtures.dir` system property in `build.gradle.kts`). The same fixture files are used by the TypeScript and Python implementations, so every language tests against an identical response contract. Fixture files are captured and anonymized by the language-agnostic `api-recordings/` module at the repo root — see `../shared/test-fixtures/CLAUDE.md` for the capture workflow and `../api-recordings/CLAUDE.md` for the anonymizer-fidelity contract.
 
 ### Testing expectations
 
@@ -314,7 +336,7 @@ Every class added to this project must have a corresponding test class. Specific
 
 ## API Reference
 
-All tool contracts are defined in `../shared/api-spec/buxfer-api.md`. Implement each MCP tool to match the parameter names and types specified there.
+All tool contracts are defined in `../shared/api-spec/buxfer-api.md`. That document is annotated inline with `> **Live API divergence**` callouts wherever the live Buxfer API behaves differently from the upstream documentation at https://www.buxfer.com/help/api — implementations should treat the callouts as ground truth.
 
 ## Implementation Notes
 

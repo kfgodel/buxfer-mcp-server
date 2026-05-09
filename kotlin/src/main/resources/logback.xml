@@ -50,15 +50,14 @@
     <property name="LOG_LEVEL" value="${BUXFER_LOG_LEVEL:-INFO}"/>
 
     <!--
-      Pattern (per Phase 2 plan):
+      Pattern:
         ISO-8601 wall clock | millis-since-JVM-start | LEVEL [thread] logger - message (class.method:line)
       The trailing (class.method:line) is formatted like a stack-frame reference
       so it is clickable in IDEs / readable in stack-trace contexts.
       Note: %class %method %line are computed from a synthesized stack trace,
       which is moderately expensive. This server logs at most a few times per
       MCP request, so the cost is negligible. Reconsider if log volume grows.
-    -->
-    <!--
+
       Parentheses are an active Logback PatternLayout grouping construct; they MUST
       be escaped as \( and \) to render as literal characters. Without the escape,
       Logback merges the trailing %n with the group expression and the file ends up
