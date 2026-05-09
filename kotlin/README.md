@@ -77,7 +77,7 @@ Substitute these into one of the two integrations below.
 #### Option A — Claude Code
 
 ```bash
-claude mcp add buxfer --scope local -- \
+claude mcp add buxfer --scope user -- \
   /Users/<you>/.asdf/installs/java/<version>/bin/java \
   -jar <pwd>/build/libs/buxfer-mcp-server-1.0-SNAPSHOT-all.jar \
   --env-file=<pwd>/.env
@@ -138,6 +138,28 @@ list. From there, all 12 tools are fair game — see [Available tools](#availabl
 - **Lookups:** `buxfer_list_tags`, `buxfer_list_budgets`,
   `buxfer_list_reminders`, `buxfer_list_groups`,
   `buxfer_list_contacts`, `buxfer_list_loans`
+
+## Removing the MCP
+
+To stop Claude from talking to your Buxfer account — undoes step 4
+above. Use the option that matches the integration you set up.
+
+### Claude Code
+
+```bash
+claude mcp remove buxfer
+```
+
+Verify with `claude mcp list` (should no longer show `buxfer`). Any
+JVM Claude Code had spawned for the server exits on its own when the
+current session ends; nothing else to clean up.
+
+### Claude Desktop
+
+Edit ~/Library/Application Support/Claude/claude_desktop_config.json
+and delete the `"buxfer"` entry under `"mcpServers"` (or remove the
+whole `"mcpServers"` block if `buxfer` was the only one). Restart
+Claude Desktop so it re-reads the config and stops the JVM.
 
 ## Updating after a `git pull`
 
