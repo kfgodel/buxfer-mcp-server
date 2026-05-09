@@ -20,4 +20,4 @@ python/*.egg-info/
 # IDE files
 .idea/
 *.iml
-/logs/server.log
+logs/
