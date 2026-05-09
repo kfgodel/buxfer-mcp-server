@@ -150,14 +150,47 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
         return body
     }
 
-    private fun responseBody(bodyText: String): JsonObject {
+    /**
+     * Strip the standard `{"response": {...}}` envelope and return the inner
+     * object. Asserts the response was successful by default.
+     *
+     * Failure rule: success is `status == "OK"`. Anything else — the
+     * documented error envelope (`{"status":"error","error":"<msg>"}`), an
+     * unexpected status string (`{"status":"failed"}`), or a missing status
+     * field — becomes a `BuxferApiException`, which the tool layer's
+     * `runCatching` converts to an MCP `isError = true` result.
+     *
+     * Exception message format: always begins with `"non-OK status: <value>"`
+     * so the unexpected status value is in every diagnostic. When the
+     * response also carries an `error` field (the documented error envelope),
+     * its content is appended in parentheses as additional context — the
+     * error string never replaces the status. The endpoint path is not in
+     * the message; [traced] already logs it alongside the failure.
+     *
+     * @param expectOkStatus default `true` — the case for every endpoint
+     *   whose inner body has a top-level response-status field. Set to
+     *   `false` for `/transaction_add` and `/transaction_edit` only: their
+     *   inner body inlines a bare Transaction object whose `status` field
+     *   is the transaction's lifecycle state (`cleared` / `pending` /
+     *   `reconciled`), not a response marker. Skipping the check avoids a
+     *   false positive on those two endpoints.
+     */
+    private fun responseBody(
+        bodyText: String,
+        expectOkStatus: Boolean = true,
+    ): JsonObject {
         val envelope = buxferJson.parseToJsonElement(bodyText).jsonObject
         val response = envelope["response"]?.jsonObject
             ?: throw BuxferApiException("Missing 'response' field in API reply")
-        val status = response["status"]?.jsonPrimitive?.contentOrNull
-        if (status == "error") {
-            val error = response["error"]?.jsonPrimitive?.contentOrNull ?: status
-            throw BuxferApiException(error)
+        if (expectOkStatus) {
+            val status = response["status"]?.jsonPrimitive?.contentOrNull
+            if (status != "OK") {
+                val error = response["error"]?.jsonPrimitive?.contentOrNull
+                val context = error?.let { " ($it)" } ?: ""
+                throw BuxferApiException(
+                    "non-OK status: ${status ?: "<missing>"}$context",
+                )
+            }
         }
         return response
     }
@@ -261,7 +294,12 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
                 params.status?.let { append("status", it) }
             }))
         }
-        val body = responseBody(text(response))
+        // expectOkStatus = false: this endpoint inlines the bare Transaction
+        // object inside the `response` envelope, and that object's own
+        // `status` field is the transaction's lifecycle state (`cleared` /
+        // `pending` / `reconciled`) — never `"OK"`. The strict check would
+        // false-positive; only the envelope strip applies here.
+        val body = responseBody(text(response), expectOkStatus = false)
         validateSchema<Transaction>(body, "/transaction_add")
         body
     }
@@ -281,7 +319,10 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
                     params.status?.let { append("status", it) }
                 }))
             }
-            val body = responseBody(text(response))
+            // expectOkStatus = false: same shape as `/transaction_add` —
+            // `status` here is the transaction's own lifecycle state, not a
+            // response marker. See the note on [addTransaction].
+            val body = responseBody(text(response), expectOkStatus = false)
             validateSchema<Transaction>(body, "/transaction_edit")
             body
         }
@@ -293,20 +334,7 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
                 append("id", id.toString())
             }))
         }
-        val body = responseBody(text(response))
-        // /transaction_delete's response payload is just `{"status":"OK"}` — there is
-        // no other data to consume. Assert the success marker explicitly so a
-        // non-"OK" status (anything `responseBody` did not already classify as an
-        // explicit "error") surfaces to the tool layer as a BuxferApiException, which
-        // `runCatching` in TransactionTools converts to an MCP isError=true result.
-        // Without this check, a degraded API response would silently look like success.
-        val status = body["status"]?.jsonPrimitive?.contentOrNull
-        if (status != "OK") {
-            throw BuxferApiException(
-                "transaction_delete returned non-OK status: ${status ?: "<missing>"}",
-            )
-        }
-        body
+        responseBody(text(response))
     }
 
     suspend fun uploadStatement(accountId: Int, statement: String, dateFormat: String? = null): JsonObject =

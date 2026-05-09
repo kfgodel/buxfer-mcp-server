@@ -161,7 +161,7 @@ class TransactionToolsTest {
         // returns a non-OK status; the tool's runCatching converts that into
         // isError=true so the LLM sees the failure.
         coEvery { mockClient.deleteTransaction(33645) } throws
-            BuxferApiException("transaction_delete returned non-OK status: failed")
+            BuxferApiException("non-OK status: failed")
         val args: JsonObject = buildJsonObject { put("id", 33645) }
 
         val result = tools.deleteTransaction(args)

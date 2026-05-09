@@ -17,13 +17,37 @@ import org.junit.jupiter.api.assertThrows
 class BuxferClientErrorHandlingTest {
 
     @Test
-    fun `throws BuxferApiException on non-OK status`() = runTest {
+    fun `throws BuxferApiException on documented error envelope`() = runTest {
+        // The status value is always in the message; the `error` field is
+        // appended as parenthesized context, never replacing the status.
         BuxferClient(BuxferClientConfig(engine = MockEngineSupport.newEngine(overrides = mapOf(
             "/accounts" to """{"response":{"status":"error","error":"Invalid token"}}"""
         )))).use { errorClient ->
             errorClient.login("user@example.com", "password")
             val ex = assertThrows<BuxferApiException> { errorClient.getAccounts() }
-            assertThat(ex.message).isEqualTo("Invalid token")
+            assertThat(ex.message)
+                .contains("non-OK status")
+                .contains("error")
+                .contains("Invalid token")
+        }
+    }
+
+    @Test
+    fun `throws BuxferApiException on non-OK status that is not the error envelope`() = runTest {
+        // Covers responseBody's strict path (expectOkStatus = true, the
+        // default): any status that is neither "OK" nor the documented
+        // "error" shape — e.g. an unexpected value returned by a degraded
+        // API — must surface as a BuxferApiException instead of being
+        // silently passed through. The endpoint path is not in the
+        // exception message itself; `traced` logs it alongside the failure.
+        BuxferClient(BuxferClientConfig(engine = MockEngineSupport.newEngine(overrides = mapOf(
+            "/accounts" to """{"response":{"status":"failed"}}"""
+        )))).use { errorClient ->
+            errorClient.login("user@example.com", "password")
+            val ex = assertThrows<BuxferApiException> { errorClient.getAccounts() }
+            assertThat(ex.message)
+                .contains("non-OK status")
+                .contains("failed")
         }
     }
 
