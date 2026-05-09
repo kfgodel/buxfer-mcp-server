@@ -53,6 +53,31 @@ git diff ../shared/test-fixtures/wiremock/__files/
 
 The `upload_statement` endpoint requires a real statement file and must be captured manually — see `requests/upload_statement.hurl` for instructions.
 
+## Anonymizer contract
+
+**Anonymizers must never change the shape of the response.** They modify only
+the values of sensitive fields, replacing them with generic equivalents.
+
+Specifically, an anonymizer must not:
+- delete fields the live API returned (`del(.foo)`),
+- add fields the live API did not return (`.foo = "..."` on records that lack `foo`),
+- change null values to non-null or vice versa (`.foo = "..."` unconditionally; `.foo // 0`),
+- change types (e.g. string → number, object → string).
+
+When the live API returns a sensitive nested object, anonymize its inner
+fields in place. Do not strip the object — that would hide the live shape
+from every fixture-driven test downstream and create false-negative drift
+detection in the language implementations.
+
+When the live API returns a field that is sometimes `null`, guard the
+anonymization with `if .foo != null then ... else null end` so the null
+case survives into the fixture. When the live API sometimes omits a field
+entirely, guard with `if has("foo") then ... else . end` so the absence
+survives into the fixture.
+
+The captured fixture is the test contract for all three language
+implementations — its job is to reflect what live actually returns.
+
 ## Running the mock server
 
 ```bash
