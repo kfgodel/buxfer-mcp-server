@@ -66,15 +66,13 @@
         "isFutureDated": false,
         "isPending": false,
         "fromAccount": {
-          "id": 603017,
-          "name": "Galicia ARS"
+          "id": 18027,
+          "name": "Test Account 18027"
         },
         "toAccount": {
-          "id": 1100868,
-          "name": "MercadoPago"
-        },
-        "accountId": null,
-        "accountName": "Test Account"
+          "id": 60885,
+          "name": "Test Account 60885"
+        }
       },
       {
         "id": 22653,

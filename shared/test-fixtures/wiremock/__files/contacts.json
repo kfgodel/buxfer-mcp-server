@@ -17,13 +17,13 @@
         "name": "Contact 3",
         "balance": 0,
         "id": 11481,
-        "email": "contact.3@example.com"
+        "email": null
       },
       {
         "name": "Contact 4",
         "balance": 0,
         "id": 31608,
-        "email": "contact.4@example.com"
+        "email": null
       }
     ],
     "status": "OK"

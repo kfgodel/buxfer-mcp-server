@@ -24,7 +24,34 @@
         "type": "expense",
         "transactionType": 3,
         "amount": 3.44,
-        "accountId": 13872
+        "accountId": 13872,
+        "account": {
+          "type": 1,
+          "typeName": "191 Bancos US",
+          "sectionName": "191 Bancos US",
+          "bank": {
+            "id": 2,
+            "name": "Test Bank",
+            "canSync": false,
+            "requireVerifiedEmail": false,
+            "requireRedirect": false,
+            "syncProvider": null,
+            "status": 0,
+            "needsSyncMigration": false,
+            "migrationTargetBankId": null
+          },
+          "canSync": false,
+          "balance": 885.01,
+          "balanceInDefaultCurrency": 885.01,
+          "hasTransactions": true,
+          "status": "active",
+          "needsSyncMigration": false,
+          "canEditHoldings": true,
+          "isInvestmentType": false,
+          "currency": "USD",
+          "id": 13872,
+          "name": "Test Account 13872"
+        }
       },
       {
         "id": 6886,
@@ -49,7 +76,33 @@
         "type": "expense",
         "transactionType": 3,
         "amount": 39612.63,
-        "accountId": 605
+        "accountId": 605,
+        "account": {
+          "type": 3,
+          "typeName": "01 Tarjetas ARS",
+          "sectionName": "01 Tarjetas ARS",
+          "bank": {
+            "id": 2,
+            "name": "Test Bank",
+            "canSync": false,
+            "requireVerifiedEmail": false,
+            "requireRedirect": false,
+            "syncProvider": null,
+            "status": 0,
+            "needsSyncMigration": false,
+            "migrationTargetBankId": null
+          },
+          "canSync": false,
+          "balance": 605.01,
+          "balanceInDefaultCurrency": 605.01,
+          "hasTransactions": true,
+          "status": "active",
+          "needsSyncMigration": false,
+          "canEditHoldings": true,
+          "isInvestmentType": false,
+          "id": 605,
+          "name": "Test Account 605"
+        }
       }
     ],
     "status": "OK"

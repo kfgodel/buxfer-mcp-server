@@ -106,9 +106,9 @@ class BuxferClientTest {
     fun `getTransactions returns JsonObject with nested transfer accounts on transfer records`() = runTest {
         val result = client.getTransactions()
         val text = result.toString()
-        assertThatJson(text).inPath("$.transactions[3].fromAccount.id").isEqualTo(603017)
-        assertThatJson(text).inPath("$.transactions[3].fromAccount.name").isEqualTo("Galicia ARS")
-        assertThatJson(text).inPath("$.transactions[3].toAccount.id").isEqualTo(1100868)
+        assertThatJson(text).inPath("$.transactions[3].fromAccount.id").isEqualTo(18027)
+        assertThatJson(text).inPath("$.transactions[3].fromAccount.name").isEqualTo("Test Account 18027")
+        assertThatJson(text).inPath("$.transactions[3].toAccount.id").isEqualTo(60885)
     }
 
     @Test

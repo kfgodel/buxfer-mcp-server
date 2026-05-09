@@ -38,8 +38,8 @@ class TransactionToolsTest {
             addJsonObject { put("id", 39962) }
             addJsonObject {
                 put("id", 22654)
-                putJsonObject("fromAccount") { put("id", 603017); put("name", "Galicia ARS") }
-                putJsonObject("toAccount") { put("id", 1100868); put("name", "MercadoPago") }
+                putJsonObject("fromAccount") { put("id", 18027); put("name", "Test Account 18027") }
+                putJsonObject("toAccount") { put("id", 60885); put("name", "Test Account 60885") }
             }
             addJsonObject { put("id", 22653) }
         }
@@ -71,8 +71,8 @@ class TransactionToolsTest {
         assertThatJson(text).inPath("$.transactions[0].isFutureDated").isEqualTo(false)
         assertThatJson(text).inPath("$.transactions[0].isPending").isEqualTo(false)
         // transfer has fromAccount/toAccount
-        assertThatJson(text).inPath("$.transactions[3].fromAccount.id").isEqualTo(603017)
-        assertThatJson(text).inPath("$.transactions[3].toAccount.id").isEqualTo(1100868)
+        assertThatJson(text).inPath("$.transactions[3].fromAccount.id").isEqualTo(18027)
+        assertThatJson(text).inPath("$.transactions[3].toAccount.id").isEqualTo(60885)
     }
 
     @Test
