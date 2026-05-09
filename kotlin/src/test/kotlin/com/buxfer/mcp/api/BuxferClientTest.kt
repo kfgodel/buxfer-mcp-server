@@ -228,7 +228,12 @@ class BuxferClientTest {
     fun `getContacts returns JsonArray of contact objects`() = runTest {
         val contacts = client.getContacts()
         assertThat(contacts).hasSize(4)
-        assertThatJson(contacts.toString()).inPath("$[0].email").isEqualTo("contact.1@example.com")
+        val text = contacts.toString()
+        assertThatJson(text).inPath("$[0].email").isEqualTo("contact.1@example.com")
+        // Live Buxfer emits `null` for contacts without an email on file. The fixture
+        // covers that branch on Contacts 3 and 4 — locks in the Tier-2 nullable email
+        // declaration in `Contact.kt` and would catch a regression that re-required it.
+        assertThatJson(text).inPath("$[2].email").isNull()
     }
 
     @Test

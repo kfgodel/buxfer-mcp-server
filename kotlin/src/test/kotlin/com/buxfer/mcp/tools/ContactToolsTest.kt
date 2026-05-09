@@ -26,12 +26,14 @@ class ContactToolsTest {
 
     @Test
     fun `listContacts returns JSON array of contacts`() = runTest {
-        // BuxferClient.getContacts() now returns the raw JsonArray; build the test fixture to match.
+        // BuxferClient.getContacts() now returns the raw JsonArray; build the test fixture
+        // to match the live shape captured in `contacts.json`: contacts 3 and 4 carry
+        // `email: null` because Buxfer emits null for contacts with no email on file.
         val contacts = buildJsonArray {
             addJsonObject { put("id", 4436); put("name", "Contact 1"); put("email", "contact.1@example.com"); put("balance", 0.0) }
             addJsonObject { put("id", 8953); put("name", "Contact 2"); put("email", "contact.2@example.com"); put("balance", 5000.0) }
-            addJsonObject { put("id", 11481); put("name", "Contact 3"); put("email", "contact.3@example.com"); put("balance", 0.0) }
-            addJsonObject { put("id", 31608); put("name", "Contact 4"); put("email", "contact.4@example.com"); put("balance", 0.0) }
+            addJsonObject { put("id", 11481); put("name", "Contact 3"); put("email", null as String?); put("balance", 0.0) }
+            addJsonObject { put("id", 31608); put("name", "Contact 4"); put("email", null as String?); put("balance", 0.0) }
         }
         coEvery { mockClient.getContacts() } returns contacts
 
@@ -40,6 +42,9 @@ class ContactToolsTest {
         val text = (result.content[0] as TextContent).text
         assertThatJson(text).isArray.hasSize(4)
         assertThatJson(text).inPath("$[0].email").isEqualTo("contact.1@example.com")
+        // Null emails forward through the tool layer unchanged — exercises the
+        // Tier-2 (`String?`) branch of the Contact schema.
+        assertThatJson(text).inPath("$[2].email").isNull()
     }
 
     @Test
