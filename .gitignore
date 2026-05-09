@@ -1,5 +1,7 @@
-# Credentials — never commit
-.env
+# Credentials — never commit. Each module has its own .env (e.g.
+# kotlin/.env, api-recordings/.env); the pattern catches all of them.
+kotlin/.env
+**/.env
 
 # Kotlin / Gradle
 kotlin/.gradle/

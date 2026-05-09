@@ -220,9 +220,9 @@ file (standard precedence).
 | `BUXFER_API_BASE_URL` | no    | `https://www.buxfer.com/api`  | Buxfer REST API base URL. Override to point the client at a staging environment or local WireMock stub. Read by `BuxferClientConfig`.                                                  |
 
 **Adding new environment variables:** every new env var must be added as a
-commented example to the root `.env.example` file, following the existing
-comment style. This keeps the file the single reference an operator needs
-when configuring a fresh deployment.
+commented example to `kotlin/.env.example`, following the existing comment
+style. This keeps the file the single reference an operator needs when
+configuring a fresh Kotlin-server deployment.
 
 On startup, `BuxferClient` calls `POST /api/login` and stores the returned
 token in memory. All subsequent tool calls inject this token.
@@ -241,7 +241,7 @@ code.
 # Build fat JAR (output at build/libs/buxfer-mcp-server-1.0-SNAPSHOT-all.jar)
 gradle shadowJar
 
-# Run directly (development; auto-loads ../.env from the kotlin/ cwd)
+# Run directly (development; auto-loads ./.env from the kotlin/ cwd)
 gradle run
 
 # Run the fat JAR (auto-loads ./.env, or pass --env-file=<path>)
@@ -253,7 +253,7 @@ java -jar build/libs/buxfer-mcp-server-1.0-SNAPSHOT-all.jar
 Two practical notes for whichever launcher you use:
 
 - **Use an absolute Java path**, not the bare `java`. Claude Desktop / Claude Code launch the process with no guarantees about `PATH`, and ASDF shims need a `.tool-versions` file in the launch cwd to resolve the right version. The cleanest fix is the absolute path to the installed JDK (e.g. `~/.asdf/installs/java/<version>/bin/java`).
-- **Pass `--env-file=<absolute path>`** (or omit it and rely on `./.env` if you can guarantee the launch cwd is the repo root). Without one of those, the server will fail at startup because `BUXFER_EMAIL` / `BUXFER_PASSWORD` won't be found.
+- **Pass `--env-file=/absolute/path/to/kotlin/.env`** (or omit it and rely on `./.env` if you can guarantee the launch cwd is `kotlin/`). Without one of those, the server will fail at startup because `BUXFER_EMAIL` / `BUXFER_PASSWORD` won't be found.
 
 ### Claude Desktop
 
@@ -267,7 +267,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
       "args": [
         "-jar",
         "/absolute/path/to/kotlin/build/libs/buxfer-mcp-server-1.0-SNAPSHOT-all.jar",
-        "--env-file=/absolute/path/to/.env"
+        "--env-file=/absolute/path/to/kotlin/.env"
       ]
     }
   }
@@ -280,7 +280,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 claude mcp add buxfer --scope local -- \
   /path/to/your/jdk/bin/java \
   -jar /absolute/path/to/kotlin/build/libs/buxfer-mcp-server-1.0-SNAPSHOT-all.jar \
-  --env-file=/absolute/path/to/.env
+  --env-file=/absolute/path/to/kotlin/.env
 ```
 
 ## Testing

@@ -16,17 +16,22 @@ month?"*, or *"add a $4 expense for lunch to my Visa"*.
 
 ## Setup
 
-These are five one-time steps. After that, every new chat with Claude
-just works — no further setup until you `git pull` (see below).
+Five one-time steps. After that, every new chat with Claude just works
+— no further setup until you `git pull` (see below).
+
+**All commands run from this module's directory.** `cd` into it once
+from the repo root and stay there:
+
+```bash
+cd kotlin
+```
 
 ### 1. Install Java 21 and Gradle 9.4.1
 
 ```bash
-cd kotlin
 asdf plugin add java     # if not already added
 asdf plugin add gradle   # if not already added
 asdf install             # installs the versions pinned in .tool-versions
-cd ..
 ```
 
 ### 2. Add your Buxfer credentials
@@ -35,48 +40,47 @@ cd ..
 cp .env.example .env
 ```
 
-Open `.env` and fill in:
+Open `.env` (i.e. `kotlin/.env`) and fill in:
 
 ```
 BUXFER_EMAIL=your@email.com
 BUXFER_PASSWORD=yourpassword
 ```
 
-`.env` is gitignored — credentials never reach the repo.
+`.env` is gitignored — credentials never reach the repo. Each module
+keeps its own `.env`; if you also use the `api-recordings/` capture
+tool, set up its own `api-recordings/.env` separately.
 
 ### 3. Build the fat JAR
 
 ```bash
-cd kotlin
 PATH="$HOME/.asdf/shims:$PATH" gradle shadowJar
 ```
 
-Output: `kotlin/build/libs/buxfer-mcp-server-1.0-SNAPSHOT-all.jar`.
+Output: `build/libs/buxfer-mcp-server-1.0-SNAPSHOT-all.jar`.
 
 ### 4. Register the MCP with Claude
 
-You need two absolute paths. Run these and keep the values handy:
+The launcher needs **absolute paths** to the JDK, the JAR, and the
+`.env` file (rationale below). Capture them once:
 
 ```bash
-# Java install path (from your asdf install)
+# Java install path (pick the version listed)
 ls ~/.asdf/installs/java/
-# e.g. temurin-21.0.10+7.0.LTS
-# → /Users/<you>/.asdf/installs/java/temurin-21.0.10+7.0.LTS/bin/java
 
-# Repo root
+# This module's absolute path — JAR and .env hang off this
 pwd
-# e.g. /Users/<you>/git/buxfer-mcp-server
 ```
 
-Then pick **one** of the two integrations.
+Substitute these into one of the two integrations below.
 
 #### Option A — Claude Code
 
 ```bash
 claude mcp add buxfer --scope local -- \
-  /Users/<you>/.asdf/installs/java/temurin-21.0.10+7.0.LTS/bin/java \
-  -jar /Users/<you>/git/buxfer-mcp-server/kotlin/build/libs/buxfer-mcp-server-1.0-SNAPSHOT-all.jar \
-  --env-file=/Users/<you>/git/buxfer-mcp-server/.env
+  /Users/<you>/.asdf/installs/java/<version>/bin/java \
+  -jar <pwd>/build/libs/buxfer-mcp-server-1.0-SNAPSHOT-all.jar \
+  --env-file=<pwd>/.env
 ```
 
 Verify:
@@ -95,11 +99,11 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`
 {
   "mcpServers": {
     "buxfer": {
-      "command": "/Users/<you>/.asdf/installs/java/temurin-21.0.10+7.0.LTS/bin/java",
+      "command": "/Users/<you>/.asdf/installs/java/<version>/bin/java",
       "args": [
         "-jar",
-        "/Users/<you>/git/buxfer-mcp-server/kotlin/build/libs/buxfer-mcp-server-1.0-SNAPSHOT-all.jar",
-        "--env-file=/Users/<you>/git/buxfer-mcp-server/.env"
+        "<pwd>/build/libs/buxfer-mcp-server-1.0-SNAPSHOT-all.jar",
+        "--env-file=<pwd>/.env"
       ]
     }
   }
@@ -137,8 +141,9 @@ list. From there, all 12 tools are fair game — see [Available tools](#availabl
 
 ## Updating after a `git pull`
 
+From this module's directory:
+
 ```bash
-cd kotlin
 PATH="$HOME/.asdf/shims:$PATH" gradle shadowJar
 ```
 
@@ -152,7 +157,7 @@ new JAR loads on the next process spawn.
 Check the server log:
 
 ```bash
-tail kotlin/logs/server.log
+tail logs/server.log
 ```
 
 Common causes:
@@ -169,10 +174,11 @@ Common causes:
 
 `<JVM-cwd>/logs/server.log`. The JVM cwd is whichever directory Claude
 launched the process from, which is unpredictable. To pin a stable
-location, add to your `.env`:
+location, add to `.env` (using the absolute path to this module — get
+it with `pwd` from here):
 
 ```
-BUXFER_LOG_DIR=/Users/<you>/git/buxfer-mcp-server/kotlin/logs
+BUXFER_LOG_DIR=<pwd>/logs
 ```
 
 ## Where to look next

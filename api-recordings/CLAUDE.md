@@ -23,14 +23,15 @@ Docker is required to run the WireMock mock server.
 
 ## Credentials
 
-Credentials are loaded from a `.env` file at the **repository root**. Copy the example and fill in your values once:
+Credentials are loaded from a local `.env` file in this directory. Copy the example and fill in your values once:
 
 ```bash
-cp ../.env.example ../.env
-# then edit ../.env
+# from api-recordings/
+cp .env.example .env
+# then edit .env
 ```
 
-The `.env` file is gitignored. You never need to export variables manually — `run-capture.sh` sources `../.env` automatically.
+`.env` is gitignored. You never need to export variables manually — `run-capture.sh` sources `./.env` automatically.
 
 ## Capturing new recordings
 

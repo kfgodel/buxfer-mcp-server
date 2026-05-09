@@ -17,7 +17,7 @@ asdf plugin add hurl && asdf plugin add jq   # first time only
 asdf install
 ```
 
-Credentials are loaded automatically from the root `.env` file. 
+Credentials are loaded automatically from `api-recordings/.env`. Copy `.env.example` to `.env` and fill in `BUXFER_EMAIL` / `BUXFER_PASSWORD` before running.
 
 ## Refreshing recordings
 

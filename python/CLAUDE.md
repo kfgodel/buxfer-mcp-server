@@ -93,13 +93,10 @@ Credentials are read from environment variables:
 | `BUXFER_EMAIL`   | Buxfer account email     |
 | `BUXFER_PASSWORD`| Buxfer account password  |
 
-For local development, load from the root `.env` file:
-
-```bash
-# from python/
-set -a && source ../.env && set +a
-python -m buxfer_mcp
-```
+Each module keeps its own `.env`. When this implementation is
+scaffolded, follow the same pattern as `kotlin/`: ship a
+`python/.env.example`, copy it to `python/.env`, and have the entry
+point load it on startup. There is no shared repo-root `.env`.
 
 ## API Reference
 

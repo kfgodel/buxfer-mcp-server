@@ -7,20 +7,20 @@ set -euo pipefail
 # Usage:
 #   ./run-capture.sh
 #
-# Credentials are loaded automatically from ../.env (repo root).
-# Copy ../.env.example to ../.env and fill in your values before running.
+# Credentials are loaded automatically from this directory's .env file.
+# Copy .env.example to .env and fill in your values before running.
 # You can also override by exporting variables before calling this script.
 #
 # Requires: hurl, jq (both managed via ASDF — run `asdf install` first)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_ENV="$SCRIPT_DIR/../.env"
+LOCAL_ENV="$SCRIPT_DIR/.env"
 
-# Load root .env if present; already-exported variables take precedence
-if [ -f "$ROOT_ENV" ]; then
+# Load local .env if present; already-exported variables take precedence
+if [ -f "$LOCAL_ENV" ]; then
   set -a
   # shellcheck source=/dev/null
-  source "$ROOT_ENV"
+  source "$LOCAL_ENV"
   set +a
 fi
 

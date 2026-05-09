@@ -17,14 +17,21 @@ buxfer-mcp-server/
 
 ## Credentials
 
-Buxfer credentials are stored in a single `.env` file at the repository root and shared across all modules:
+Each module is standalone and keeps its own `.env`. There is no shared
+repo-root `.env`. Modules that need credentials ship a `.env.example`
+inside their own directory:
 
 ```bash
+# from kotlin/
 cp .env.example .env
-# edit .env — add BUXFER_EMAIL and BUXFER_PASSWORD
+# edit kotlin/.env — add BUXFER_EMAIL and BUXFER_PASSWORD
+
+# similarly for api-recordings/ if you want to capture fresh fixtures
 ```
 
-`.env` is gitignored. Each module that needs credentials loads it automatically — you never need to export variables by hand. See `.env.example` for the full variable list.
+`.env` is gitignored everywhere via `**/.env`. Each module loads its
+own file automatically — you never need to export variables by hand.
+See the per-module `.env.example` for the full variable list.
 
 ## Language Version Management
 

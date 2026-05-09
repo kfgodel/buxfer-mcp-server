@@ -18,7 +18,7 @@ Pick the implementation you want and follow its README:
 
 - **Kotlin** → **[`kotlin/README.md`](kotlin/README.md)** — five-step setup walkthrough (build the JAR, register the MCP with Claude Code or Claude Desktop, try it).
 
-The walkthrough handles credentials too, so you don't need to do anything else first — `cp .env.example .env`, fill in `BUXFER_EMAIL` and `BUXFER_PASSWORD`, and the implementation's README takes you the rest of the way.
+Each module is standalone — it has its own `.env.example` to copy and fill in with `BUXFER_EMAIL` / `BUXFER_PASSWORD`, so you only need to set up credentials for the module(s) you're actually using. The implementation's README walks you through it.
 
 ---
 
