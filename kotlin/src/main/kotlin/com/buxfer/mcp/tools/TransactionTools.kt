@@ -6,12 +6,17 @@ import com.buxfer.mcp.api.models.AddTransactionParams
 import com.buxfer.mcp.api.models.TransactionFilters
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
+import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 import org.slf4j.LoggerFactory
 
 class TransactionTools(private val client: BuxferClient) {
@@ -25,6 +30,98 @@ class TransactionTools(private val client: BuxferClient) {
          *  - password : credential, not currently a tool arg but listed defensively in case it is added later.
          */
         private val redactedArgs = setOf("statement", "password")
+
+        // Enum values per shared/api-spec/buxfer-api.md "Transaction Types" section.
+        private val transactionTypeEnum = listOf(
+            "expense", "income", "refund", "payment", "transfer",
+            "investment_buy", "investment_sell", "investment_dividend",
+            "capital_gain", "capital_loss",
+            "sharedBill", "paidForFriend", "settlement", "loan",
+        )
+
+        private val statusEnum = listOf("pending", "cleared", "reconciled")
+
+        val LIST_TRANSACTIONS_INPUT_SCHEMA = ToolSchema(
+            properties = buildJsonObject {
+                put("accountId",   buildJsonObject { put("type", "integer"); put("description", "Filter by account ID") })
+                put("accountName", buildJsonObject { put("type", "string");  put("description", "Filter by account name (alternative to accountId)") })
+                put("tagId",       buildJsonObject { put("type", "integer"); put("description", "Filter by tag ID") })
+                put("tagName",     buildJsonObject { put("type", "string");  put("description", "Filter by tag name") })
+                put("startDate",   buildJsonObject { put("type", "string");  put("description", "Start date in YYYY-MM-DD format") })
+                put("endDate",     buildJsonObject { put("type", "string");  put("description", "End date in YYYY-MM-DD format") })
+                put("budgetId",    buildJsonObject { put("type", "integer"); put("description", "Filter by budget ID") })
+                put("budgetName",  buildJsonObject { put("type", "string");  put("description", "Filter by budget name") })
+                put("contactId",   buildJsonObject { put("type", "integer"); put("description", "Filter by contact ID") })
+                put("contactName", buildJsonObject { put("type", "string");  put("description", "Filter by contact name") })
+                put("groupId",     buildJsonObject { put("type", "integer"); put("description", "Filter by group ID") })
+                put("groupName",   buildJsonObject { put("type", "string");  put("description", "Filter by group name") })
+                put("status",      buildJsonObject {
+                    put("type", "string")
+                    put("description", "Transaction status filter")
+                    putJsonArray("enum") { statusEnum.forEach { add(it) } }
+                })
+                put("page",        buildJsonObject { put("type", "integer"); put("description", "Page number (1-based, default 1)") })
+            },
+        )
+
+        val ADD_TRANSACTION_INPUT_SCHEMA = ToolSchema(
+            properties = buildJsonObject {
+                put("description", buildJsonObject { put("type", "string");  put("description", "Transaction description") })
+                put("amount",      buildJsonObject { put("type", "number");  put("description", "Transaction amount") })
+                put("accountId",   buildJsonObject { put("type", "integer"); put("description", "Account to post to") })
+                put("date",        buildJsonObject { put("type", "string");  put("description", "Date in YYYY-MM-DD format") })
+                put("type",        buildJsonObject {
+                    put("type", "string")
+                    put("description", "Transaction type")
+                    putJsonArray("enum") { transactionTypeEnum.forEach { add(it) } }
+                })
+                put("tags",        buildJsonObject { put("type", "string");  put("description", "Comma-separated tag names") })
+                put("status",      buildJsonObject {
+                    put("type", "string")
+                    put("description", "Transaction status")
+                    putJsonArray("enum") { statusEnum.forEach { add(it) } }
+                })
+            },
+            required = listOf("description", "amount", "accountId", "date", "type"),
+        )
+
+        val EDIT_TRANSACTION_INPUT_SCHEMA = ToolSchema(
+            properties = buildJsonObject {
+                put("id",          buildJsonObject { put("type", "integer"); put("description", "Transaction ID to edit") })
+                put("description", buildJsonObject { put("type", "string");  put("description", "Transaction description") })
+                put("amount",      buildJsonObject { put("type", "number");  put("description", "Transaction amount") })
+                put("accountId",   buildJsonObject { put("type", "integer"); put("description", "Account the transaction belongs to") })
+                put("date",        buildJsonObject { put("type", "string");  put("description", "Date in YYYY-MM-DD format") })
+                put("type",        buildJsonObject {
+                    put("type", "string")
+                    put("description", "Transaction type")
+                    putJsonArray("enum") { transactionTypeEnum.forEach { add(it) } }
+                })
+                put("tags",        buildJsonObject { put("type", "string");  put("description", "Comma-separated tag names") })
+                put("status",      buildJsonObject {
+                    put("type", "string")
+                    put("description", "Transaction status")
+                    putJsonArray("enum") { statusEnum.forEach { add(it) } }
+                })
+            },
+            required = listOf("id", "description", "amount", "accountId", "date", "type"),
+        )
+
+        val DELETE_TRANSACTION_INPUT_SCHEMA = ToolSchema(
+            properties = buildJsonObject {
+                put("id", buildJsonObject { put("type", "integer"); put("description", "Transaction ID to delete") })
+            },
+            required = listOf("id"),
+        )
+
+        val UPLOAD_STATEMENT_INPUT_SCHEMA = ToolSchema(
+            properties = buildJsonObject {
+                put("accountId",  buildJsonObject { put("type", "integer"); put("description", "Account to import statement into") })
+                put("statement",  buildJsonObject { put("type", "string");  put("description", "Raw bank statement text") })
+                put("dateFormat", buildJsonObject { put("type", "string");  put("description", "Optional date format hint for parsing") })
+            },
+            required = listOf("accountId", "statement"),
+        )
     }
 
     private fun logToolEntry(name: String, args: JsonObject?) {

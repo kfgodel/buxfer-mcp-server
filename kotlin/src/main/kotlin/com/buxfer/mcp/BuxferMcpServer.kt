@@ -15,6 +15,7 @@ import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
 import io.modelcontextprotocol.kotlin.sdk.shared.Transport
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities
+import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.io.asSink
 import kotlinx.io.asSource
@@ -47,27 +48,32 @@ class BuxferMcpServer(client: BuxferClient) {
 
         addTool(
             name = "buxfer_list_transactions",
-            description = "List Buxfer transactions, optionally filtered by accountId, accountName, tagId, tagName, startDate, endDate, budgetId, budgetName, contactId, contactName, groupId, groupName, status, page."
+            description = "List Buxfer transactions, optionally filtered by accountId, accountName, tagId, tagName, startDate, endDate, budgetId, budgetName, contactId, contactName, groupId, groupName, status, page.",
+            inputSchema = TransactionTools.LIST_TRANSACTIONS_INPUT_SCHEMA,
         ) { request -> transactionTools.listTransactions(request.arguments) }
 
         addTool(
             name = "buxfer_add_transaction",
-            description = "Add a Buxfer transaction. Required: description, amount, accountId, date, type. Optional: tags, status."
+            description = "Add a Buxfer transaction. Required: description, amount, accountId, date, type. Optional: tags, status.",
+            inputSchema = TransactionTools.ADD_TRANSACTION_INPUT_SCHEMA,
         ) { request -> transactionTools.addTransaction(request.arguments) }
 
         addTool(
             name = "buxfer_edit_transaction",
-            description = "Edit a Buxfer transaction by id. Required: id, description, amount, accountId, date, type. Optional: tags, status."
+            description = "Edit a Buxfer transaction by id. Required: id, description, amount, accountId, date, type. Optional: tags, status.",
+            inputSchema = TransactionTools.EDIT_TRANSACTION_INPUT_SCHEMA,
         ) { request -> transactionTools.editTransaction(request.arguments) }
 
         addTool(
             name = "buxfer_delete_transaction",
-            description = "Delete a Buxfer transaction by id."
+            description = "Delete a Buxfer transaction by id.",
+            inputSchema = TransactionTools.DELETE_TRANSACTION_INPUT_SCHEMA,
         ) { request -> transactionTools.deleteTransaction(request.arguments) }
 
         addTool(
             name = "buxfer_upload_statement",
-            description = "Upload a bank statement to a Buxfer account. Required: accountId, statement. Optional: dateFormat."
+            description = "Upload a bank statement to a Buxfer account. Required: accountId, statement. Optional: dateFormat.",
+            inputSchema = TransactionTools.UPLOAD_STATEMENT_INPUT_SCHEMA,
         ) { request -> transactionTools.uploadStatement(request.arguments) }
 
         addTool(
@@ -105,6 +111,9 @@ class BuxferMcpServer(client: BuxferClient) {
 
     val toolDescriptors: Map<String, String?>
         get() = server.tools.mapValues { (_, registered) -> registered.tool.description }
+
+    fun inputSchemaFor(toolName: String): ToolSchema =
+        server.tools.getValue(toolName).tool.inputSchema
 
     suspend fun start() = start(
         StdioServerTransport(
