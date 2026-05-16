@@ -63,6 +63,7 @@ class BuxferMcpServerTest {
         // see `shared/api-spec/buxfer-api.md` and AddTransactionParams.kt for the contract.
         assertThat(schema.properties?.keys).containsExactlyInAnyOrder(
             "description", "amount", "accountId", "date", "type", "tags", "status",
+            "fromAccountId", "toAccountId",
             "payers", "sharers", "isEvenSplit",
             "loanedBy", "borrowedBy",
             "paidBy", "paidFor",
@@ -80,6 +81,7 @@ class BuxferMcpServerTest {
 
         assertThat(schema.properties?.keys).containsExactlyInAnyOrder(
             "id", "description", "amount", "accountId", "date", "type", "tags", "status",
+            "fromAccountId", "toAccountId",
             "payers", "sharers", "isEvenSplit",
             "loanedBy", "borrowedBy",
             "paidBy", "paidFor",

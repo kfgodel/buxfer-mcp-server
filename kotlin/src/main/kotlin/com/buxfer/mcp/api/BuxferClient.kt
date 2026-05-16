@@ -337,6 +337,8 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
         append("type", params.type)
         params.tags?.let { append("tags", it) }
         params.status?.let { append("status", it) }
+        params.fromAccountId?.let { append("fromAccountId", it.toString()) }
+        params.toAccountId?.let { append("toAccountId", it.toString()) }
         params.payers?.let { append("payers", buxferJson.encodeToString(it)) }
         params.sharers?.let { append("sharers", buxferJson.encodeToString(it)) }
         params.isEvenSplit?.let { append("isEvenSplit", it.toString()) }

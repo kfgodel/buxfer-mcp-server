@@ -317,6 +317,23 @@ class TransactionToolsTest {
     }
 
     @Test
+    fun `addTransaction threads fromAccountId and toAccountId into params for transfer type`() = runTest {
+        val captured = slot<AddTransactionParams>()
+        coEvery { mockClient.addTransaction(capture(captured)) } returns buildJsonObject { put("id", 1) }
+        val args: JsonObject = buildJsonObject {
+            put("description", "Move funds"); put("amount", 200.0); put("accountId", 10350)
+            put("date", "2026-05-16"); put("type", "transfer")
+            put("fromAccountId", 10350)
+            put("toAccountId", 10351)
+        }
+
+        tools.addTransaction(args)
+
+        assertThat(captured.captured.fromAccountId).isEqualTo(10350)
+        assertThat(captured.captured.toAccountId).isEqualTo(10351)
+    }
+
+    @Test
     fun `addTransaction threads paidBy and paidFor into params for paidForFriend type`() = runTest {
         val captured = slot<AddTransactionParams>()
         coEvery { mockClient.addTransaction(capture(captured)) } returns buildJsonObject { put("id", 1) }

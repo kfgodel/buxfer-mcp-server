@@ -55,7 +55,8 @@ class BuxferMcpServer(client: BuxferClient) {
         addTool(
             name = "buxfer_add_transaction",
             description = "Add a Buxfer transaction. Required: description, amount, accountId, date, type. " +
-                "Optional (any type): tags, status. " +
+                "Optional (any type): tags, status (pending or cleared). " +
+                "Optional (type=transfer): fromAccountId, toAccountId. " +
                 "Optional (type=sharedBill): payers (array of {email, amount}), sharers (array of {email, amount?}), isEvenSplit. " +
                 "Optional (type=loan): loanedBy, borrowedBy (email or UID). " +
                 "Optional (type=paidForFriend): paidBy, paidFor (email or UID).",
@@ -65,7 +66,8 @@ class BuxferMcpServer(client: BuxferClient) {
         addTool(
             name = "buxfer_edit_transaction",
             description = "Edit a Buxfer transaction by id. Required: id, description, amount, accountId, date, type. " +
-                "Optional (any type): tags, status. " +
+                "Optional (any type): tags, status (pending or cleared). " +
+                "Optional (type=transfer): fromAccountId, toAccountId. " +
                 "Optional (type=sharedBill): payers (array of {email, amount}), sharers (array of {email, amount?}), isEvenSplit. " +
                 "Optional (type=loan): loanedBy, borrowedBy (email or UID). " +
                 "Optional (type=paidForFriend): paidBy, paidFor (email or UID).",

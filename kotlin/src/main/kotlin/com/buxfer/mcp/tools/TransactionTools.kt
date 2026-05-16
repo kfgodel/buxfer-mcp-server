@@ -40,7 +40,15 @@ class TransactionTools(private val client: BuxferClient) {
             "sharedBill", "paidForFriend", "settlement", "loan",
         )
 
+        // Used by the /transactions filter, which accepts all three lifecycle states as
+        // query values per the upstream docs.
         private val statusEnum = listOf("pending", "cleared", "reconciled")
+
+        // Used by transaction_add / transaction_edit input schemas. `reconciled` is a state
+        // a transaction reaches via reconciliation actions on Buxfer's side, not via direct
+        // create/edit write — per the upstream docs only `pending` and `cleared` are valid
+        // here. See `shared/api-spec/buxfer-api.md`.
+        private val writableStatusEnum = listOf("pending", "cleared")
 
         val LIST_TRANSACTIONS_INPUT_SCHEMA = ToolSchema(
             properties = buildJsonObject {
@@ -66,9 +74,17 @@ class TransactionTools(private val client: BuxferClient) {
         )
 
         // Extra schema fragments for the per-type fields documented in
-        // `shared/api-spec/buxfer-api.md` lines 147-167. Defined once and added to both
-        // ADD and EDIT schemas — they share the same body shape on the wire.
+        // `shared/api-spec/buxfer-api.md`. Defined once and added to both ADD and EDIT
+        // schemas — they share the same body shape on the wire.
         private fun JsonObjectBuilder.addPerTypeTransactionProperties() {
+            put("fromAccountId", buildJsonObject {
+                put("type", "integer")
+                put("description", "For type=transfer: source account. Pair with toAccountId.")
+            })
+            put("toAccountId", buildJsonObject {
+                put("type", "integer")
+                put("description", "For type=transfer: destination account. Pair with fromAccountId (or accountId, which Buxfer treats as the source side).")
+            })
             put("payers", buildJsonObject {
                 put("type", "array")
                 put("description", "Required for type=sharedBill. Who paid the bill and how much. Each entry is {email, amount}.")
@@ -129,8 +145,8 @@ class TransactionTools(private val client: BuxferClient) {
                 put("tags",        buildJsonObject { put("type", "string");  put("description", "Comma-separated tag names") })
                 put("status",      buildJsonObject {
                     put("type", "string")
-                    put("description", "Transaction status")
-                    putJsonArray("enum") { statusEnum.forEach { add(it) } }
+                    put("description", "Transaction status at create time (reconciled is reached via reconciliation, not direct write)")
+                    putJsonArray("enum") { writableStatusEnum.forEach { add(it) } }
                 })
                 addPerTypeTransactionProperties()
             },
@@ -152,8 +168,8 @@ class TransactionTools(private val client: BuxferClient) {
                 put("tags",        buildJsonObject { put("type", "string");  put("description", "Comma-separated tag names") })
                 put("status",      buildJsonObject {
                     put("type", "string")
-                    put("description", "Transaction status")
-                    putJsonArray("enum") { statusEnum.forEach { add(it) } }
+                    put("description", "Transaction status (reconciled is reached via reconciliation, not direct write)")
+                    putJsonArray("enum") { writableStatusEnum.forEach { add(it) } }
                 })
                 addPerTypeTransactionProperties()
             },
@@ -260,6 +276,8 @@ class TransactionTools(private val client: BuxferClient) {
             type = args.requireString("type"),
             tags = args.optString("tags"),
             status = args.optString("status"),
+            fromAccountId = args.optInt("fromAccountId"),
+            toAccountId = args.optInt("toAccountId"),
             payers = args.optPayerShareList("payers"),
             sharers = args.optPayerShareList("sharers"),
             isEvenSplit = args.optBoolean("isEvenSplit"),

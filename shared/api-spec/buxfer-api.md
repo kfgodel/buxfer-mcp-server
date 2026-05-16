@@ -129,28 +129,46 @@ Add a new transaction.
 
 **Request parameters**
 
-| Field       | Type   | Required | Description                                                   |
-|-------------|--------|----------|---------------------------------------------------------------|
-| description | string | yes      | Transaction description                                       |
-| amount      | number | yes      | Transaction amount (positive)                                 |
-| accountId   | int    | yes      | Account to post to                                            |
-| date        | string | yes      | Date in `YYYY-MM-DD` format                                   |
-| tags        | string | no       | Comma-separated tag names                                     |
-| type        | string | yes¹     | See Transaction Types below                                   |
-| status      | string | no       | `pending`, `cleared`, or `reconciled`                         |
+| Field         | Type   | Required | Description                                                   |
+|---------------|--------|----------|---------------------------------------------------------------|
+| description   | string | yes      | Transaction description                                       |
+| amount        | number | yes      | Transaction amount (positive)                                 |
+| accountId     | int    | no²      | Account to post to (use `fromAccountId`/`toAccountId` for transfers) |
+| fromAccountId | int    | no²      | Source account for `type=transfer`                            |
+| toAccountId   | int    | no²      | Destination account for `type=transfer`                       |
+| date          | string | yes      | Date in `YYYY-MM-DD` format                                   |
+| tags          | string | no       | Comma-separated tag names                                     |
+| type          | string | yes¹     | See Transaction Types below                                   |
+| status        | string | no       | `pending` or `cleared` (³)                                    |
 
 > **Live API divergence (verified 2026-05-08)** vs [upstream `transaction_add` section](https://www.buxfer.com/help/api#transaction_add):
 > ¹ `type` is documented as optional (default `expense`) but the live API
 > rejects requests without it with `HTTP 400: {"error":{"type":"client","message":"Missing value for parameter [type]"}}`.
 > Treat `type` as **required**.
 
+> ² Account routing is conditional, not endpoint-required: `accountId` is needed
+> for non-transfer types (`expense`, `income`, `sharedBill`, …); `fromAccountId`
+> and `toAccountId` are needed for `type=transfer`. The upstream docs list all
+> three as optional because the endpoint accepts whichever pair makes sense for
+> the type — but at least one valid pair is required in practice.
+
+> ³ `status` accepts only `pending` and `cleared` at create/edit time per
+> the upstream docs; `reconciled` is a state a transaction reaches via
+> reconciliation actions, not via direct write. The `/transactions` filter
+> does accept `reconciled` as a query value (see that endpoint).
+
 **Shared bill extra fields** (when `type = sharedBill`)
 
 | Field       | Type   | Description                                              |
 |-------------|--------|----------------------------------------------------------|
-| payers      | JSON   | Array of `{name, amount}` objects                        |
-| sharers     | JSON   | Array of `{name, amount}` objects                        |
+| payers      | JSON   | Array of `{email, amount}` objects                       |
+| sharers     | JSON   | Array of `{email, amount}` objects (amount optional when `isEvenSplit=true`) |
 | isEvenSplit | bool   | Whether cost is split evenly                             |
+
+> The upstream example uses `email` to identify each payer/sharer (the field
+> can also be `name` if the contact has no email on file, but `email` is the
+> documented and recommended form). This repository's implementation only
+> exposes `email`.
 
 **Loan extra fields** (when `type = loan`)
 
@@ -205,7 +223,16 @@ Add a new transaction.
 
 Edit an existing transaction.
 
-**Request parameters**: same as `transaction_add`, plus:
+**Request parameters**: same shape as `transaction_add`, plus `id`. Per the
+upstream docs, only `id` is strictly required — every other field is documented
+as optional, so a partial update should be possible (e.g. change just the
+description). **This has not been verified against the live API by this
+repository.** The MCP server currently mirrors `transaction_add`'s required
+set (`description`, `amount`, `accountId`, `date`, `type`) on the input
+schema. If a future smoke test confirms partial updates are accepted, relax
+the required list in [TransactionTools.kt][edit-schema].
+
+[edit-schema]: ../../kotlin/src/main/kotlin/com/buxfer/mcp/tools/TransactionTools.kt
 
 | Field | Type | Required | Description          |
 |-------|------|----------|----------------------|
@@ -261,6 +288,11 @@ Upload a bank statement for an account.
   "balance": 1234.56
 }
 ```
+
+> **Live API divergence (verified 2026-05-08)** vs [upstream `upload_statement` section](https://www.buxfer.com/help/api#upload_statement):
+> upstream documents `uploaded` as a boolean, but the live API returns the
+> integer count of transactions imported. The captured fixture (`__files/upload_statement.json`)
+> and `UploadStatementResult.kt` already model it as an int.
 
 ---
 

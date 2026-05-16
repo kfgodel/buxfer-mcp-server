@@ -29,6 +29,12 @@ data class AddTransactionParams(
     val type: String,
     val tags: String? = null,
     val status: String? = null,
+    // transfer extras: for `type=transfer`, Buxfer routes amount from one account to
+    // another via these two fields instead of `accountId`. The MCP tool layer leaves
+    // it up to the caller to provide the right pair for the chosen type — Buxfer
+    // validates and returns a clear error for any mismatch.
+    val fromAccountId: Int? = null,
+    val toAccountId: Int? = null,
     // sharedBill extras
     val payers: List<PayerShare>? = null,
     val sharers: List<PayerShare>? = null,

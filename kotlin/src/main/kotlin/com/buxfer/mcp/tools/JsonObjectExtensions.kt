@@ -40,6 +40,10 @@ internal fun JsonObject?.requireString(name: String): String =
 internal fun JsonObject?.optString(name: String): String? =
     this?.get(name)?.jsonPrimitive?.contentOrNull
 
+/** Pluck an optional Int argument by name. Returns null when the key is absent or not a parseable integer. */
+internal fun JsonObject?.optInt(name: String): Int? =
+    this?.get(name)?.jsonPrimitive?.intOrNull
+
 /** Pluck an optional Boolean argument by name. Returns null when the key is absent or not a boolean. */
 internal fun JsonObject?.optBoolean(name: String): Boolean? =
     this?.get(name)?.jsonPrimitive?.booleanOrNull

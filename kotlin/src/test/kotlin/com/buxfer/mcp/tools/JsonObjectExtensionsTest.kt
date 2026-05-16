@@ -137,6 +137,27 @@ class JsonObjectExtensionsTest {
     }
 
     @Test
+    fun `optInt returns the value when key holds an int`() {
+        val args = buildJsonObject { put("toAccountId", 10351) }
+
+        assertThat(args.optInt("toAccountId")).isEqualTo(10351)
+    }
+
+    @Test
+    fun `optInt returns null when key is missing`() {
+        val args = buildJsonObject { }
+
+        assertThat(args.optInt("toAccountId")).isNull()
+    }
+
+    @Test
+    fun `optInt returns null when value is a non-numeric string`() {
+        val args = buildJsonObject { put("toAccountId", "abc") }
+
+        assertThat(args.optInt("toAccountId")).isNull()
+    }
+
+    @Test
     fun `optBoolean returns the value when key holds a boolean`() {
         val args = buildJsonObject { put("isEvenSplit", true) }
 
