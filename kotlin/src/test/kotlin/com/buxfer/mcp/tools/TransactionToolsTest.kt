@@ -2,10 +2,13 @@ package com.buxfer.mcp.tools
 
 import com.buxfer.mcp.api.BuxferApiException
 import com.buxfer.mcp.api.BuxferClient
+import com.buxfer.mcp.api.models.AddTransactionParams
+import com.buxfer.mcp.api.models.PayerShare
 import com.buxfer.mcp.api.models.TransactionFilters
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import io.mockk.slot
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonArray
@@ -261,5 +264,72 @@ class TransactionToolsTest {
 
         assertThat(result.isError).isTrue()
         assertThat((result.content[0] as TextContent).text).contains("'statement'")
+    }
+
+    @Test
+    fun `addTransaction threads sharedBill payers sharers and isEvenSplit into params`() = runTest {
+        // Captures the AddTransactionParams the tool builds from MCP args to prove the
+        // per-type sharedBill fields make it from tool input to the client call — the
+        // BuxferClient side of the wire is covered by the integration test.
+        val captured = slot<AddTransactionParams>()
+        coEvery { mockClient.addTransaction(capture(captured)) } returns buildJsonObject { put("id", 1) }
+        val args: JsonObject = buildJsonObject {
+            put("description", "Dinner"); put("amount", 100.0); put("accountId", 10350)
+            put("date", "2026-05-16"); put("type", "sharedBill")
+            putJsonArray("sharers") {
+                addJsonObject { put("email", "a@example.com"); put("amount", 60.0) }
+                addJsonObject { put("email", "b@example.com"); put("amount", 40.0) }
+            }
+            putJsonArray("payers") {
+                addJsonObject { put("email", "a@example.com"); put("amount", 100.0) }
+            }
+            put("isEvenSplit", false)
+        }
+
+        tools.addTransaction(args)
+
+        assertThat(captured.captured.type).isEqualTo("sharedBill")
+        assertThat(captured.captured.sharers).containsExactly(
+            PayerShare(email = "a@example.com", amount = 60.0),
+            PayerShare(email = "b@example.com", amount = 40.0),
+        )
+        assertThat(captured.captured.payers).containsExactly(
+            PayerShare(email = "a@example.com", amount = 100.0),
+        )
+        assertThat(captured.captured.isEvenSplit).isFalse()
+    }
+
+    @Test
+    fun `addTransaction threads loanedBy and borrowedBy into params for loan type`() = runTest {
+        val captured = slot<AddTransactionParams>()
+        coEvery { mockClient.addTransaction(capture(captured)) } returns buildJsonObject { put("id", 1) }
+        val args: JsonObject = buildJsonObject {
+            put("description", "Lent cash"); put("amount", 50.0); put("accountId", 10350)
+            put("date", "2026-05-16"); put("type", "loan")
+            put("loanedBy", "lender@example.com")
+            put("borrowedBy", "borrower@example.com")
+        }
+
+        tools.addTransaction(args)
+
+        assertThat(captured.captured.loanedBy).isEqualTo("lender@example.com")
+        assertThat(captured.captured.borrowedBy).isEqualTo("borrower@example.com")
+    }
+
+    @Test
+    fun `addTransaction threads paidBy and paidFor into params for paidForFriend type`() = runTest {
+        val captured = slot<AddTransactionParams>()
+        coEvery { mockClient.addTransaction(capture(captured)) } returns buildJsonObject { put("id", 1) }
+        val args: JsonObject = buildJsonObject {
+            put("description", "Covered tab"); put("amount", 25.0); put("accountId", 10350)
+            put("date", "2026-05-16"); put("type", "paidForFriend")
+            put("paidBy", "me@example.com")
+            put("paidFor", "friend@example.com")
+        }
+
+        tools.addTransaction(args)
+
+        assertThat(captured.captured.paidBy).isEqualTo("me@example.com")
+        assertThat(captured.captured.paidFor).isEqualTo("friend@example.com")
     }
 }

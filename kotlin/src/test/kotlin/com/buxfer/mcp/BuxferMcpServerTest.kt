@@ -59,8 +59,13 @@ class BuxferMcpServerTest {
 
         val schema = subject.inputSchemaFor("buxfer_add_transaction")
 
+        // Optional per-type fields cover the sharedBill / loan / paidForFriend variants —
+        // see `shared/api-spec/buxfer-api.md` and AddTransactionParams.kt for the contract.
         assertThat(schema.properties?.keys).containsExactlyInAnyOrder(
             "description", "amount", "accountId", "date", "type", "tags", "status",
+            "payers", "sharers", "isEvenSplit",
+            "loanedBy", "borrowedBy",
+            "paidBy", "paidFor",
         )
         assertThat(schema.required).containsExactlyInAnyOrder(
             "description", "amount", "accountId", "date", "type",
@@ -75,6 +80,9 @@ class BuxferMcpServerTest {
 
         assertThat(schema.properties?.keys).containsExactlyInAnyOrder(
             "id", "description", "amount", "accountId", "date", "type", "tags", "status",
+            "payers", "sharers", "isEvenSplit",
+            "loanedBy", "borrowedBy",
+            "paidBy", "paidFor",
         )
         assertThat(schema.required).containsExactlyInAnyOrder(
             "id", "description", "amount", "accountId", "date", "type",

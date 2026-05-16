@@ -7,7 +7,11 @@ import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock.aResponse
 import com.github.tomakehurst.wiremock.client.WireMock.get
 import com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor
+import com.github.tomakehurst.wiremock.client.WireMock.post
+import com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor
 import com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 import io.modelcontextprotocol.kotlin.sdk.ExperimentalMcpApi
 import io.modelcontextprotocol.kotlin.sdk.client.Client
 import io.modelcontextprotocol.kotlin.sdk.client.mcpClient
@@ -158,6 +162,64 @@ class BuxferMcpServerIntegrationTest {
         // Exercises the POST/form path of BuxferClient end-to-end through MCP.
         val text = (result.content[0] as TextContent).text
         assertThatJson(text).inPath("$.id").isEqualTo(33645)
+        client.close()
+    }
+
+    @Test
+    fun `buxfer_add_transaction sends sharedBill payers and sharers as JSON form fields`() = runTest {
+        // Per-test override of /api/transaction_add: returns a sharedBill-shaped response so the
+        // round-trip type matches what Buxfer sends back for this case (`type: "shared bill"`,
+        // `expenseAmount` = the user's own share). .atPriority(1) wins over the default mapping.
+        wireMock.stubFor(post(urlPathEqualTo("/api/transaction_add"))
+            .atPriority(1)
+            .willReturn(aResponse()
+                .withStatus(200)
+                .withHeader("Content-Type", "application/json")
+                .withBody(
+                    """
+                    {"response":{"id":33646,"description":"Dinner","date":"2026-05-16",
+                    "type":"shared bill","transactionType":"sharedBill","amount":100.0,
+                    "expenseAmount":60.0,"accountId":10350,"accountName":"Test Account",
+                    "tags":"","tagNames":[],"status":"cleared","isFutureDated":false,
+                    "isPending":false}}
+                    """.trimIndent(),
+                )))
+
+        val client = launchMcpClient()
+
+        val result = client.callTool("buxfer_add_transaction", mapOf(
+            "description" to "Dinner",
+            "amount" to 100.0,
+            "accountId" to 10350,
+            "date" to "2026-05-16",
+            "type" to "sharedBill",
+            "sharers" to listOf(
+                mapOf("email" to "a@example.com", "amount" to 60.0),
+                mapOf("email" to "b@example.com", "amount" to 40.0),
+            ),
+            "payers" to listOf(
+                mapOf("email" to "a@example.com", "amount" to 100.0),
+            ),
+            "isEvenSplit" to false,
+            "status" to "cleared",
+        ))
+
+        // Response side: Claude sees the sharedBill-typed transaction with the user's share.
+        val text = (result.content[0] as TextContent).text
+        assertThatJson(text).inPath("$.id").isEqualTo(33646)
+        assertThatJson(text).inPath("$.type").isEqualTo("shared bill")
+        assertThatJson(text).inPath("$.expenseAmount").isEqualTo(60.0)
+
+        // Wire side: prove the per-type form fields landed on the HTTP request. The body is
+        // application/x-www-form-urlencoded, so we URL-decode it first; the array fields are
+        // expected as JSON strings per the Buxfer API contract.
+        val captured = wireMock.findAll(postRequestedFor(urlPathEqualTo("/api/transaction_add"))).single()
+        val body = URLDecoder.decode(captured.bodyAsString, StandardCharsets.UTF_8)
+        assertThat(body).contains("type=sharedBill")
+        assertThat(body).contains("isEvenSplit=false")
+        assertThat(body).contains("sharers=[{\"email\":\"a@example.com\",\"amount\":60.0}," +
+            "{\"email\":\"b@example.com\",\"amount\":40.0}]")
+        assertThat(body).contains("payers=[{\"email\":\"a@example.com\",\"amount\":100.0}]")
         client.close()
     }
 

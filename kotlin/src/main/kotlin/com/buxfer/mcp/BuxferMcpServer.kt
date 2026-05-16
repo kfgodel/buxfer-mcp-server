@@ -54,13 +54,21 @@ class BuxferMcpServer(client: BuxferClient) {
 
         addTool(
             name = "buxfer_add_transaction",
-            description = "Add a Buxfer transaction. Required: description, amount, accountId, date, type. Optional: tags, status.",
+            description = "Add a Buxfer transaction. Required: description, amount, accountId, date, type. " +
+                "Optional (any type): tags, status. " +
+                "Optional (type=sharedBill): payers (array of {email, amount}), sharers (array of {email, amount?}), isEvenSplit. " +
+                "Optional (type=loan): loanedBy, borrowedBy (email or UID). " +
+                "Optional (type=paidForFriend): paidBy, paidFor (email or UID).",
             inputSchema = TransactionTools.ADD_TRANSACTION_INPUT_SCHEMA,
         ) { request -> transactionTools.addTransaction(request.arguments) }
 
         addTool(
             name = "buxfer_edit_transaction",
-            description = "Edit a Buxfer transaction by id. Required: id, description, amount, accountId, date, type. Optional: tags, status.",
+            description = "Edit a Buxfer transaction by id. Required: id, description, amount, accountId, date, type. " +
+                "Optional (any type): tags, status. " +
+                "Optional (type=sharedBill): payers (array of {email, amount}), sharers (array of {email, amount?}), isEvenSplit. " +
+                "Optional (type=loan): loanedBy, borrowedBy (email or UID). " +
+                "Optional (type=paidForFriend): paidBy, paidFor (email or UID).",
             inputSchema = TransactionTools.EDIT_TRANSACTION_INPUT_SCHEMA,
         ) { request -> transactionTools.editTransaction(request.arguments) }
 

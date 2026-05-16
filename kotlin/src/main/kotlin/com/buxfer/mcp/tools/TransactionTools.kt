@@ -8,6 +8,7 @@ import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
@@ -64,6 +65,56 @@ class TransactionTools(private val client: BuxferClient) {
             },
         )
 
+        // Extra schema fragments for the per-type fields documented in
+        // `shared/api-spec/buxfer-api.md` lines 147-167. Defined once and added to both
+        // ADD and EDIT schemas — they share the same body shape on the wire.
+        private fun JsonObjectBuilder.addPerTypeTransactionProperties() {
+            put("payers", buildJsonObject {
+                put("type", "array")
+                put("description", "Required for type=sharedBill. Who paid the bill and how much. Each entry is {email, amount}.")
+                put("items", buildJsonObject {
+                    put("type", "object")
+                    put("properties", buildJsonObject {
+                        put("email",  buildJsonObject { put("type", "string"); put("description", "Payer email (must be a Buxfer contact)") })
+                        put("amount", buildJsonObject { put("type", "number"); put("description", "Amount this payer paid") })
+                    })
+                    putJsonArray("required") { add("email"); add("amount") }
+                })
+            })
+            put("sharers", buildJsonObject {
+                put("type", "array")
+                put("description", "Required for type=sharedBill. Who shares the cost and (when isEvenSplit=false) how much each owes. Each entry is {email, amount?}.")
+                put("items", buildJsonObject {
+                    put("type", "object")
+                    put("properties", buildJsonObject {
+                        put("email",  buildJsonObject { put("type", "string"); put("description", "Sharer email (must be a Buxfer contact)") })
+                        put("amount", buildJsonObject { put("type", "number"); put("description", "Amount this sharer owes; omit when isEvenSplit=true") })
+                    })
+                    putJsonArray("required") { add("email") }
+                })
+            })
+            put("isEvenSplit", buildJsonObject {
+                put("type", "boolean")
+                put("description", "For type=sharedBill. When true, Buxfer divides the total evenly across sharers (omit per-sharer amounts).")
+            })
+            put("loanedBy", buildJsonObject {
+                put("type", "string")
+                put("description", "Required for type=loan. UID or email of the lender.")
+            })
+            put("borrowedBy", buildJsonObject {
+                put("type", "string")
+                put("description", "Required for type=loan. UID or email of the borrower.")
+            })
+            put("paidBy", buildJsonObject {
+                put("type", "string")
+                put("description", "Required for type=paidForFriend. UID or email of who paid.")
+            })
+            put("paidFor", buildJsonObject {
+                put("type", "string")
+                put("description", "Required for type=paidForFriend. UID or email of the beneficiary.")
+            })
+        }
+
         val ADD_TRANSACTION_INPUT_SCHEMA = ToolSchema(
             properties = buildJsonObject {
                 put("description", buildJsonObject { put("type", "string");  put("description", "Transaction description") })
@@ -81,6 +132,7 @@ class TransactionTools(private val client: BuxferClient) {
                     put("description", "Transaction status")
                     putJsonArray("enum") { statusEnum.forEach { add(it) } }
                 })
+                addPerTypeTransactionProperties()
             },
             required = listOf("description", "amount", "accountId", "date", "type"),
         )
@@ -103,6 +155,7 @@ class TransactionTools(private val client: BuxferClient) {
                     put("description", "Transaction status")
                     putJsonArray("enum") { statusEnum.forEach { add(it) } }
                 })
+                addPerTypeTransactionProperties()
             },
             required = listOf("id", "description", "amount", "accountId", "date", "type"),
         )
@@ -174,15 +227,7 @@ class TransactionTools(private val client: BuxferClient) {
 
     suspend fun addTransaction(args: JsonObject?): CallToolResult = runCatching {
         logToolEntry("buxfer_add_transaction", args)
-        val params = AddTransactionParams(
-            description = args.requireString("description"),
-            amount = args.requireDouble("amount"),
-            accountId = args.requireInt("accountId"),
-            date = args.requireString("date"),
-            type = args.requireString("type"),
-            tags = args.optString("tags"),
-            status = args.optString("status"),
-        )
+        val params = parseAddTransactionParams(args)
         val tx = client.addTransaction(params)
         CallToolResult(content = listOf(TextContent(buxferJson.encodeToString(tx))))
     }.getOrElse { e ->
@@ -193,7 +238,21 @@ class TransactionTools(private val client: BuxferClient) {
     suspend fun editTransaction(args: JsonObject?): CallToolResult = runCatching {
         logToolEntry("buxfer_edit_transaction", args)
         val id = args.requireInt("id")
-        val params = AddTransactionParams(
+        val params = parseAddTransactionParams(args)
+        val tx = client.editTransaction(id, params)
+        CallToolResult(content = listOf(TextContent(buxferJson.encodeToString(tx))))
+    }.getOrElse { e ->
+        log.error("tool=buxfer_edit_transaction failed", e)
+        CallToolResult(content = listOf(TextContent("Error: ${e.message}")), isError = true)
+    }
+
+    /**
+     * Shared arg → params parser for add and edit. Keeping the field list in one place
+     * matches [com.buxfer.mcp.api.BuxferClient.appendTransactionFields] on the wire side
+     * and prevents create/update drift as new fields are added.
+     */
+    private fun parseAddTransactionParams(args: JsonObject?): AddTransactionParams =
+        AddTransactionParams(
             description = args.requireString("description"),
             amount = args.requireDouble("amount"),
             accountId = args.requireInt("accountId"),
@@ -201,13 +260,14 @@ class TransactionTools(private val client: BuxferClient) {
             type = args.requireString("type"),
             tags = args.optString("tags"),
             status = args.optString("status"),
+            payers = args.optPayerShareList("payers"),
+            sharers = args.optPayerShareList("sharers"),
+            isEvenSplit = args.optBoolean("isEvenSplit"),
+            loanedBy = args.optString("loanedBy"),
+            borrowedBy = args.optString("borrowedBy"),
+            paidBy = args.optString("paidBy"),
+            paidFor = args.optString("paidFor"),
         )
-        val tx = client.editTransaction(id, params)
-        CallToolResult(content = listOf(TextContent(buxferJson.encodeToString(tx))))
-    }.getOrElse { e ->
-        log.error("tool=buxfer_edit_transaction failed", e)
-        CallToolResult(content = listOf(TextContent("Error: ${e.message}")), isError = true)
-    }
 
     suspend fun deleteTransaction(args: JsonObject?): CallToolResult = runCatching {
         logToolEntry("buxfer_delete_transaction", args)

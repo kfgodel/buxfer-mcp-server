@@ -23,10 +23,12 @@ import io.ktor.client.request.forms.FormDataContent
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.Parameters
+import io.ktor.http.ParametersBuilder
 import io.ktor.http.isSuccess
 import java.io.IOException
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -285,13 +287,7 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
         val response = httpClient.post("${config.baseUrl}/transaction_add") {
             setBody(FormDataContent(Parameters.build {
                 append("token", requireToken())
-                append("description", params.description)
-                append("amount", params.amount.toString())
-                append("accountId", params.accountId.toString())
-                append("date", params.date)
-                append("type", params.type)
-                params.tags?.let { append("tags", it) }
-                params.status?.let { append("status", it) }
+                appendTransactionFields(params)
             }))
         }
         // expectOkStatus = false: this endpoint inlines the bare Transaction
@@ -310,13 +306,7 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
                 setBody(FormDataContent(Parameters.build {
                     append("token", requireToken())
                     append("id", id.toString())
-                    append("description", params.description)
-                    append("amount", params.amount.toString())
-                    append("accountId", params.accountId.toString())
-                    append("date", params.date)
-                    append("type", params.type)
-                    params.tags?.let { append("tags", it) }
-                    params.status?.let { append("status", it) }
+                    appendTransactionFields(params)
                 }))
             }
             // expectOkStatus = false: same shape as `/transaction_add` —
@@ -326,6 +316,35 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
             validateSchema<Transaction>(body, "/transaction_edit")
             body
         }
+
+    /**
+     * Shared form-field builder for `/transaction_add` and `/transaction_edit`. Both
+     * endpoints take the same body shape — only the `id` field differs — so the field
+     * list is kept in one place to prevent drift between create and update.
+     *
+     * `payers` and `sharers` are sent as JSON-string values per the Buxfer API contract
+     * (`https://www.buxfer.com/help/api#transaction_add` example); the live API parses
+     * them out of the form field, not as nested form params. Booleans are stringified
+     * lower-case (`"true"`/`"false"`) which matches Ruby/PHP form conventions Buxfer
+     * accepts. Strings for `loanedBy`/`borrowedBy`/`paidBy`/`paidFor` accept either an
+     * email or a numeric UID — forwarded verbatim with no parsing.
+     */
+    private fun ParametersBuilder.appendTransactionFields(params: AddTransactionParams) {
+        append("description", params.description)
+        append("amount", params.amount.toString())
+        append("accountId", params.accountId.toString())
+        append("date", params.date)
+        append("type", params.type)
+        params.tags?.let { append("tags", it) }
+        params.status?.let { append("status", it) }
+        params.payers?.let { append("payers", buxferJson.encodeToString(it)) }
+        params.sharers?.let { append("sharers", buxferJson.encodeToString(it)) }
+        params.isEvenSplit?.let { append("isEvenSplit", it.toString()) }
+        params.loanedBy?.let { append("loanedBy", it) }
+        params.borrowedBy?.let { append("borrowedBy", it) }
+        params.paidBy?.let { append("paidBy", it) }
+        params.paidFor?.let { append("paidFor", it) }
+    }
 
     suspend fun deleteTransaction(id: Int): JsonObject = traced("POST", "/transaction_delete") {
         val response = httpClient.post("${config.baseUrl}/transaction_delete") {

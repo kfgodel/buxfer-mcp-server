@@ -1,9 +1,12 @@
 package com.buxfer.mcp.tools
 
+import com.buxfer.mcp.api.models.PayerShare
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -131,5 +134,81 @@ class JsonObjectExtensionsTest {
         val args: JsonObject? = null
 
         assertThat(args.optString("dateFormat")).isNull()
+    }
+
+    @Test
+    fun `optBoolean returns the value when key holds a boolean`() {
+        val args = buildJsonObject { put("isEvenSplit", true) }
+
+        assertThat(args.optBoolean("isEvenSplit")).isTrue()
+    }
+
+    @Test
+    fun `optBoolean returns null when key is missing`() {
+        val args = buildJsonObject { }
+
+        assertThat(args.optBoolean("isEvenSplit")).isNull()
+    }
+
+    @Test
+    fun `optBoolean returns null when receiver is null`() {
+        val args: JsonObject? = null
+
+        assertThat(args.optBoolean("isEvenSplit")).isNull()
+    }
+
+    @Test
+    fun `optPayerShareList parses an array of email-amount objects`() {
+        val args = buildJsonObject {
+            putJsonArray("sharers") {
+                addJsonObject { put("email", "a@example.com"); put("amount", 60.0) }
+                addJsonObject { put("email", "b@example.com"); put("amount", 40.0) }
+            }
+        }
+
+        val parsed = args.optPayerShareList("sharers")
+
+        assertThat(parsed).containsExactly(
+            PayerShare(email = "a@example.com", amount = 60.0),
+            PayerShare(email = "b@example.com", amount = 40.0),
+        )
+    }
+
+    @Test
+    fun `optPayerShareList accepts entries without amount (even-split case)`() {
+        val args = buildJsonObject {
+            putJsonArray("sharers") {
+                addJsonObject { put("email", "a@example.com") }
+                addJsonObject { put("email", "b@example.com") }
+            }
+        }
+
+        val parsed = args.optPayerShareList("sharers")
+
+        assertThat(parsed).containsExactly(
+            PayerShare(email = "a@example.com", amount = null),
+            PayerShare(email = "b@example.com", amount = null),
+        )
+    }
+
+    @Test
+    fun `optPayerShareList returns null when key is missing`() {
+        val args = buildJsonObject { }
+
+        assertThat(args.optPayerShareList("sharers")).isNull()
+    }
+
+    @Test
+    fun `optPayerShareList throws when an entry is missing email`() {
+        val args = buildJsonObject {
+            putJsonArray("sharers") {
+                addJsonObject { put("amount", 50.0) }
+            }
+        }
+
+        assertThatThrownBy { args.optPayerShareList("sharers") }
+            .isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining("'sharers'")
+            .hasMessageContaining("email")
     }
 }

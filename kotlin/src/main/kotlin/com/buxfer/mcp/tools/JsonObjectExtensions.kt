@@ -1,9 +1,13 @@
 package com.buxfer.mcp.tools
 
+import com.buxfer.mcp.api.models.PayerShare
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
@@ -35,3 +39,30 @@ internal fun JsonObject?.requireString(name: String): String =
 /** Pluck an optional String argument by name. Returns null when the key is absent. */
 internal fun JsonObject?.optString(name: String): String? =
     this?.get(name)?.jsonPrimitive?.contentOrNull
+
+/** Pluck an optional Boolean argument by name. Returns null when the key is absent or not a boolean. */
+internal fun JsonObject?.optBoolean(name: String): Boolean? =
+    this?.get(name)?.jsonPrimitive?.booleanOrNull
+
+/**
+ * Decode an optional JSON-array argument into `List<PayerShare>`. Returns `null` when
+ * the key is absent (caller may want to omit the field), but throws on a present but
+ * malformed value — a `payers`/`sharers` array with a missing `email` is a programming
+ * error from the caller, not something to silently drop on the floor. Each element
+ * must be an object with at minimum an `email` string; `amount` is optional (omitted
+ * when `isEvenSplit = true`).
+ */
+internal fun JsonObject?.optPayerShareList(name: String): List<PayerShare>? {
+    val arr = this?.get(name) as? JsonArray ?: return null
+    return arr.map { element ->
+        val obj = element.jsonObject
+        val email = obj["email"]?.jsonPrimitive?.contentOrNull
+            ?: throw IllegalArgumentException(
+                "Malformed entry in '$name': each element must include 'email'",
+            )
+        PayerShare(
+            email = email,
+            amount = obj["amount"]?.jsonPrimitive?.doubleOrNull,
+        )
+    }
+}
