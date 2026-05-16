@@ -7,6 +7,7 @@ import com.buxfer.mcp.api.models.PayerShare
 import com.buxfer.mcp.api.models.TransactionFilters
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
@@ -56,6 +57,9 @@ class TransactionToolsTest {
     @BeforeEach
     fun setUp() {
         tools = TransactionTools(mockClient)
+        // Default for tests that exercise the `"me"` marker resolution. Tests that
+        // need the unauthenticated case override this with `every { ... } returns null`.
+        every { mockClient.currentUserEmail } returns "me@example.com"
     }
 
     @Test
@@ -267,56 +271,6 @@ class TransactionToolsTest {
     }
 
     @Test
-    fun `addTransaction threads sharedBill payers sharers and isEvenSplit into params`() = runTest {
-        // Captures the AddTransactionParams the tool builds from MCP args to prove the
-        // per-type sharedBill fields make it from tool input to the client call — the
-        // BuxferClient side of the wire is covered by the integration test.
-        val captured = slot<AddTransactionParams>()
-        coEvery { mockClient.addTransaction(capture(captured)) } returns buildJsonObject { put("id", 1) }
-        val args: JsonObject = buildJsonObject {
-            put("description", "Dinner"); put("amount", 100.0); put("accountId", 10350)
-            put("date", "2026-05-16"); put("type", "sharedBill")
-            putJsonArray("sharers") {
-                addJsonObject { put("email", "a@example.com"); put("amount", 60.0) }
-                addJsonObject { put("email", "b@example.com"); put("amount", 40.0) }
-            }
-            putJsonArray("payers") {
-                addJsonObject { put("email", "a@example.com"); put("amount", 100.0) }
-            }
-            put("isEvenSplit", false)
-        }
-
-        tools.addTransaction(args)
-
-        assertThat(captured.captured.type).isEqualTo("sharedBill")
-        assertThat(captured.captured.sharers).containsExactly(
-            PayerShare(email = "a@example.com", amount = 60.0),
-            PayerShare(email = "b@example.com", amount = 40.0),
-        )
-        assertThat(captured.captured.payers).containsExactly(
-            PayerShare(email = "a@example.com", amount = 100.0),
-        )
-        assertThat(captured.captured.isEvenSplit).isFalse()
-    }
-
-    @Test
-    fun `addTransaction threads loanedBy and borrowedBy into params for loan type`() = runTest {
-        val captured = slot<AddTransactionParams>()
-        coEvery { mockClient.addTransaction(capture(captured)) } returns buildJsonObject { put("id", 1) }
-        val args: JsonObject = buildJsonObject {
-            put("description", "Lent cash"); put("amount", 50.0); put("accountId", 10350)
-            put("date", "2026-05-16"); put("type", "loan")
-            put("loanedBy", "lender@example.com")
-            put("borrowedBy", "borrower@example.com")
-        }
-
-        tools.addTransaction(args)
-
-        assertThat(captured.captured.loanedBy).isEqualTo("lender@example.com")
-        assertThat(captured.captured.borrowedBy).isEqualTo("borrower@example.com")
-    }
-
-    @Test
     fun `addTransaction threads fromAccountId and toAccountId into params for transfer type`() = runTest {
         val captured = slot<AddTransactionParams>()
         coEvery { mockClient.addTransaction(capture(captured)) } returns buildJsonObject { put("id", 1) }
@@ -334,13 +288,61 @@ class TransactionToolsTest {
     }
 
     @Test
-    fun `addTransaction threads paidBy and paidFor into params for paidForFriend type`() = runTest {
+    fun `addTransaction resolves 'me' in sharedBill sharers and payers to the logged-in email`() = runTest {
+        // The MCP client doesn't know the user's email — it just passes "me" and the
+        // server substitutes the email captured at login (mocked via mockClient).
+        val captured = slot<AddTransactionParams>()
+        coEvery { mockClient.addTransaction(capture(captured)) } returns buildJsonObject { put("id", 1) }
+        val args: JsonObject = buildJsonObject {
+            put("description", "Dinner"); put("amount", 100.0); put("accountId", 10350)
+            put("date", "2026-05-16"); put("type", "sharedBill")
+            putJsonArray("sharers") {
+                addJsonObject { put("email", "me"); put("amount", 60.0) }
+                addJsonObject { put("email", "friend@example.com"); put("amount", 40.0) }
+            }
+            putJsonArray("payers") {
+                addJsonObject { put("email", "me"); put("amount", 100.0) }
+            }
+        }
+
+        tools.addTransaction(args)
+
+        assertThat(captured.captured.sharers).containsExactly(
+            PayerShare(email = "me@example.com", amount = 60.0),
+            PayerShare(email = "friend@example.com", amount = 40.0),
+        )
+        assertThat(captured.captured.payers).containsExactly(
+            PayerShare(email = "me@example.com", amount = 100.0),
+        )
+    }
+
+    @Test
+    fun `addTransaction resolves 'me' case-insensitively in loan loanedBy and borrowedBy`() = runTest {
+        // Mixed-case marker still resolves — the schema documents "me" but Claude may
+        // capitalize. The check is intentionally case-insensitive.
+        val captured = slot<AddTransactionParams>()
+        coEvery { mockClient.addTransaction(capture(captured)) } returns buildJsonObject { put("id", 1) }
+        val args: JsonObject = buildJsonObject {
+            put("description", "Loan to friend"); put("amount", 50.0); put("accountId", 10350)
+            put("date", "2026-05-16"); put("type", "loan")
+            put("loanedBy", "ME")
+            put("borrowedBy", "friend@example.com")
+        }
+
+        tools.addTransaction(args)
+
+        assertThat(captured.captured.loanedBy).isEqualTo("me@example.com")
+        assertThat(captured.captured.borrowedBy).isEqualTo("friend@example.com")
+    }
+
+    @Test
+    fun `addTransaction resolves 'me' in paidForFriend paidBy and paidFor`() = runTest {
         val captured = slot<AddTransactionParams>()
         coEvery { mockClient.addTransaction(capture(captured)) } returns buildJsonObject { put("id", 1) }
         val args: JsonObject = buildJsonObject {
             put("description", "Covered tab"); put("amount", 25.0); put("accountId", 10350)
             put("date", "2026-05-16"); put("type", "paidForFriend")
-            put("paidBy", "me@example.com")
+            put("paidBy", "me")
             put("paidFor", "friend@example.com")
         }
 
@@ -348,5 +350,135 @@ class TransactionToolsTest {
 
         assertThat(captured.captured.paidBy).isEqualTo("me@example.com")
         assertThat(captured.captured.paidFor).isEqualTo("friend@example.com")
+    }
+
+    @Test
+    fun `addTransaction rejects sharedBill when sharers does not include the current user`() = runTest {
+        // No "me" anywhere in sharers — the user isn't a participant, which is
+        // nonsensical for a sharedBill (it lives in the user's books).
+        val args: JsonObject = buildJsonObject {
+            put("description", "Dinner"); put("amount", 100.0); put("accountId", 10350)
+            put("date", "2026-05-16"); put("type", "sharedBill")
+            putJsonArray("sharers") {
+                addJsonObject { put("email", "alice@example.com"); put("amount", 50.0) }
+                addJsonObject { put("email", "bob@example.com"); put("amount", 50.0) }
+            }
+            putJsonArray("payers") {
+                addJsonObject { put("email", "me"); put("amount", 100.0) }
+            }
+        }
+
+        val result = tools.addTransaction(args)
+
+        assertThat(result.isError).isTrue()
+        val text = (result.content[0] as TextContent).text
+        assertThat(text).contains("sharers")
+        assertThat(text).contains("\"me\"")
+    }
+
+    @Test
+    fun `addTransaction rejects sharedBill when payers does not include the current user`() = runTest {
+        val args: JsonObject = buildJsonObject {
+            put("description", "Dinner"); put("amount", 100.0); put("accountId", 10350)
+            put("date", "2026-05-16"); put("type", "sharedBill")
+            putJsonArray("sharers") {
+                addJsonObject { put("email", "me"); put("amount", 50.0) }
+                addJsonObject { put("email", "alice@example.com"); put("amount", 50.0) }
+            }
+            putJsonArray("payers") {
+                addJsonObject { put("email", "alice@example.com"); put("amount", 100.0) }
+            }
+        }
+
+        val result = tools.addTransaction(args)
+
+        assertThat(result.isError).isTrue()
+        assertThat((result.content[0] as TextContent).text).contains("payers")
+    }
+
+    @Test
+    fun `addTransaction rejects loan when neither loanedBy nor borrowedBy is the current user`() = runTest {
+        val args: JsonObject = buildJsonObject {
+            put("description", "Loan between friends"); put("amount", 50.0); put("accountId", 10350)
+            put("date", "2026-05-16"); put("type", "loan")
+            put("loanedBy", "alice@example.com")
+            put("borrowedBy", "bob@example.com")
+        }
+
+        val result = tools.addTransaction(args)
+
+        assertThat(result.isError).isTrue()
+        val text = (result.content[0] as TextContent).text
+        assertThat(text).contains("loanedBy")
+        assertThat(text).contains("borrowedBy")
+    }
+
+    @Test
+    fun `addTransaction rejects loan when both loanedBy and borrowedBy are the current user`() = runTest {
+        // Self-loan is meaningless — if both sides are "me", reject with a specific message.
+        val args: JsonObject = buildJsonObject {
+            put("description", "Self loan?"); put("amount", 50.0); put("accountId", 10350)
+            put("date", "2026-05-16"); put("type", "loan")
+            put("loanedBy", "me")
+            put("borrowedBy", "me")
+        }
+
+        val result = tools.addTransaction(args)
+
+        assertThat(result.isError).isTrue()
+        assertThat((result.content[0] as TextContent).text).contains("cannot both be the current user")
+    }
+
+    @Test
+    fun `addTransaction rejects paidForFriend when neither paidBy nor paidFor is the current user`() = runTest {
+        val args: JsonObject = buildJsonObject {
+            put("description", "Friend covered another friend"); put("amount", 25.0); put("accountId", 10350)
+            put("date", "2026-05-16"); put("type", "paidForFriend")
+            put("paidBy", "alice@example.com")
+            put("paidFor", "bob@example.com")
+        }
+
+        val result = tools.addTransaction(args)
+
+        assertThat(result.isError).isTrue()
+        val text = (result.content[0] as TextContent).text
+        assertThat(text).contains("paidBy")
+        assertThat(text).contains("paidFor")
+    }
+
+    @Test
+    fun `addTransaction rejects paidForFriend when both paidBy and paidFor are the current user`() = runTest {
+        // Both being "me" makes it a regular expense, not paidForFriend — surface a clear hint.
+        val args: JsonObject = buildJsonObject {
+            put("description", "Paid for myself"); put("amount", 25.0); put("accountId", 10350)
+            put("date", "2026-05-16"); put("type", "paidForFriend")
+            put("paidBy", "me")
+            put("paidFor", "me")
+        }
+
+        val result = tools.addTransaction(args)
+
+        assertThat(result.isError).isTrue()
+        assertThat((result.content[0] as TextContent).text).contains("regular expense")
+    }
+
+    @Test
+    fun `addTransaction surfaces isError when 'me' is used without an active session`() = runTest {
+        // currentUserEmail is null → resolveMe throws → runCatching turns it into
+        // isError so the LLM sees a clear message instead of a silent network failure.
+        every { mockClient.currentUserEmail } returns null
+        val args: JsonObject = buildJsonObject {
+            put("description", "Dinner"); put("amount", 100.0); put("accountId", 10350)
+            put("date", "2026-05-16"); put("type", "sharedBill")
+            putJsonArray("sharers") {
+                addJsonObject { put("email", "me"); put("amount", 50.0) }
+                addJsonObject { put("email", "friend@example.com"); put("amount", 50.0) }
+            }
+        }
+
+        val result = tools.addTransaction(args)
+
+        assertThat(result.isError).isTrue()
+        assertThat((result.content[0] as TextContent).text).contains("'me'")
     }
 }

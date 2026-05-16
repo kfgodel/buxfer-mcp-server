@@ -38,6 +38,24 @@ class BuxferClientTest {
     }
 
     @Test
+    fun `currentUserEmail is null before login`() {
+        BuxferClient(BuxferClientConfig(engine = MockEngineSupport.newEngine())).use { freshClient ->
+            assertThat(freshClient.currentUserEmail).isNull()
+        }
+    }
+
+    @Test
+    fun `login captures the email lowercased for sharedBill 'me' resolution`() = runTest {
+        BuxferClient(BuxferClientConfig(engine = MockEngineSupport.newEngine())).use { freshClient ->
+            // Mixed-case email is normalized to lowercase so it matches Buxfer's
+            // normalized contact emails when used as a `me` substitution.
+            freshClient.login("MixedCase@Example.COM", "password")
+
+            assertThat(freshClient.currentUserEmail).isEqualTo("mixedcase@example.com")
+        }
+    }
+
+    @Test
     fun `login stores token from response and attaches it to subsequent requests`() = runTest {
         val capturedTokens = mutableListOf<String?>()
         val engine = MockEngine { request ->

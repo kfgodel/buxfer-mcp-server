@@ -170,6 +170,27 @@ Add a new transaction.
 > documented and recommended form). This repository's implementation only
 > exposes `email`.
 
+> **MCP-layer convenience: `"me"` marker** (not an upstream Buxfer feature).
+> In every counterparty field — each `payers[].email`, `sharers[].email`,
+> plus `loanedBy`/`borrowedBy` (loan) and `paidBy`/`paidFor` (paidForFriend) —
+> the MCP server accepts the literal string `"me"` (case-insensitive) as a
+> stand-in for the current Buxfer user. `TransactionTools` resolves it to
+> `BuxferClient.currentUserEmail` (captured at login, lowercased) before
+> building the form-POST. The MCP client never has to know the user's email.
+> When `"me"` is referenced without an active session, the tool returns an
+> `isError` result with a clear message.
+>
+> **MCP-layer invariant: the current user must be a participant.** Buxfer
+> transactions live in the current user's books, so a `sharedBill` / `loan` /
+> `paidForFriend` that doesn't involve them is nonsensical. `TransactionTools`
+> validates this before sending the request and rejects with a precise
+> `IllegalArgumentException` (surfaced as `isError`) if the rule is violated.
+> Rules enforced (only when the relevant field is provided — missing fields
+> are left for Buxfer to validate):
+>  - `sharedBill`: `sharers` must include the current user, and so must `payers`.
+>  - `loan`: exactly one of `loanedBy` / `borrowedBy` is the current user — not both, not neither.
+>  - `paidForFriend`: exactly one of `paidBy` / `paidFor` is the current user.
+
 **Loan extra fields** (when `type = loan`)
 
 | Field      | Type   | Description                            |

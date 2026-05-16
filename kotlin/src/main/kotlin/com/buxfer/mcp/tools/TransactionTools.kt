@@ -3,6 +3,7 @@ package com.buxfer.mcp.tools
 import com.buxfer.mcp.api.BuxferClient
 import com.buxfer.mcp.api.buxferJson
 import com.buxfer.mcp.api.models.AddTransactionParams
+import com.buxfer.mcp.api.models.PayerShare
 import com.buxfer.mcp.api.models.TransactionFilters
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
@@ -87,11 +88,11 @@ class TransactionTools(private val client: BuxferClient) {
             })
             put("payers", buildJsonObject {
                 put("type", "array")
-                put("description", "Required for type=sharedBill. Who paid the bill and how much. Each entry is {email, amount}.")
+                put("description", "Required for type=sharedBill. Who paid the bill and how much. Each entry is {email, amount}. The current user MUST be one of the payers — use {\"email\": \"me\", ...} for their entry (the server resolves \"me\" to the credentials' email, so the MCP client never has to know it).")
                 put("items", buildJsonObject {
                     put("type", "object")
                     put("properties", buildJsonObject {
-                        put("email",  buildJsonObject { put("type", "string"); put("description", "Payer email (must be a Buxfer contact)") })
+                        put("email",  buildJsonObject { put("type", "string"); put("description", "Payer email, or the literal \"me\" for the current user") })
                         put("amount", buildJsonObject { put("type", "number"); put("description", "Amount this payer paid") })
                     })
                     putJsonArray("required") { add("email"); add("amount") }
@@ -99,11 +100,11 @@ class TransactionTools(private val client: BuxferClient) {
             })
             put("sharers", buildJsonObject {
                 put("type", "array")
-                put("description", "Required for type=sharedBill. Who shares the cost and (when isEvenSplit=false) how much each owes. Each entry is {email, amount?}.")
+                put("description", "Required for type=sharedBill. Who shares the cost and (when isEvenSplit=false) how much each owes. Each entry is {email, amount?}. The current user MUST be one of the sharers — use {\"email\": \"me\", ...} for their entry.")
                 put("items", buildJsonObject {
                     put("type", "object")
                     put("properties", buildJsonObject {
-                        put("email",  buildJsonObject { put("type", "string"); put("description", "Sharer email (must be a Buxfer contact)") })
+                        put("email",  buildJsonObject { put("type", "string"); put("description", "Sharer email, or the literal \"me\" for the current user") })
                         put("amount", buildJsonObject { put("type", "number"); put("description", "Amount this sharer owes; omit when isEvenSplit=true") })
                     })
                     putJsonArray("required") { add("email") }
@@ -115,19 +116,19 @@ class TransactionTools(private val client: BuxferClient) {
             })
             put("loanedBy", buildJsonObject {
                 put("type", "string")
-                put("description", "Required for type=loan. UID or email of the lender.")
+                put("description", "Required for type=loan. UID or email of the lender. Exactly one of loanedBy / borrowedBy MUST be the current user — pass \"me\" for whichever side they're on (loanedBy=\"me\" if the user lent, borrowedBy=\"me\" if the user borrowed).")
             })
             put("borrowedBy", buildJsonObject {
                 put("type", "string")
-                put("description", "Required for type=loan. UID or email of the borrower.")
+                put("description", "Required for type=loan. UID or email of the borrower. See loanedBy for the \"me\" placement rule.")
             })
             put("paidBy", buildJsonObject {
                 put("type", "string")
-                put("description", "Required for type=paidForFriend. UID or email of who paid.")
+                put("description", "Required for type=paidForFriend. UID or email of who paid. Exactly one of paidBy / paidFor MUST be the current user — pass \"me\" for whichever side they're on (paidBy=\"me\" if the user paid for a friend, paidFor=\"me\" if a friend paid for the user).")
             })
             put("paidFor", buildJsonObject {
                 put("type", "string")
-                put("description", "Required for type=paidForFriend. UID or email of the beneficiary.")
+                put("description", "Required for type=paidForFriend. UID or email of the beneficiary. See paidBy for the \"me\" placement rule.")
             })
         }
 
@@ -244,6 +245,7 @@ class TransactionTools(private val client: BuxferClient) {
     suspend fun addTransaction(args: JsonObject?): CallToolResult = runCatching {
         logToolEntry("buxfer_add_transaction", args)
         val params = parseAddTransactionParams(args)
+        validateParticipantInvariants(params)
         val tx = client.addTransaction(params)
         CallToolResult(content = listOf(TextContent(buxferJson.encodeToString(tx))))
     }.getOrElse { e ->
@@ -255,6 +257,7 @@ class TransactionTools(private val client: BuxferClient) {
         logToolEntry("buxfer_edit_transaction", args)
         val id = args.requireInt("id")
         val params = parseAddTransactionParams(args)
+        validateParticipantInvariants(params)
         val tx = client.editTransaction(id, params)
         CallToolResult(content = listOf(TextContent(buxferJson.encodeToString(tx))))
     }.getOrElse { e ->
@@ -278,14 +281,107 @@ class TransactionTools(private val client: BuxferClient) {
             status = args.optString("status"),
             fromAccountId = args.optInt("fromAccountId"),
             toAccountId = args.optInt("toAccountId"),
-            payers = args.optPayerShareList("payers"),
-            sharers = args.optPayerShareList("sharers"),
+            payers = args.optPayerShareList("payers")?.map { it.resolveMe() },
+            sharers = args.optPayerShareList("sharers")?.map { it.resolveMe() },
             isEvenSplit = args.optBoolean("isEvenSplit"),
-            loanedBy = args.optString("loanedBy"),
-            borrowedBy = args.optString("borrowedBy"),
-            paidBy = args.optString("paidBy"),
-            paidFor = args.optString("paidFor"),
+            loanedBy = args.optString("loanedBy")?.let { resolveMe(it) },
+            borrowedBy = args.optString("borrowedBy")?.let { resolveMe(it) },
+            paidBy = args.optString("paidBy")?.let { resolveMe(it) },
+            paidFor = args.optString("paidFor")?.let { resolveMe(it) },
         )
+
+    /**
+     * Resolve the magic value `"me"` (case-insensitive) into the current session's
+     * user email. The MCP client doesn't know — and shouldn't have to know — the
+     * Buxfer credentials' email, so any contraparte field (`paidBy`, `paidFor`,
+     * `loanedBy`, `borrowedBy`, and each `payers`/`sharers` entry) accepts the
+     * literal string `"me"` as shorthand. Any other string is returned unchanged
+     * (treated as a literal email or UID).
+     *
+     * Throws [IllegalStateException] if `"me"` is referenced before the client has
+     * successfully logged in. The tool handler's `runCatching` surfaces it as an
+     * `isError` result so Claude sees a clear message instead of a silent fail.
+     */
+    private fun resolveMe(value: String): String =
+        if (value.equals("me", ignoreCase = true)) {
+            client.currentUserEmail
+                ?: throw IllegalStateException(
+                    "Cannot resolve 'me': no active Buxfer session. The server logs in on startup using BUXFER_EMAIL/BUXFER_PASSWORD.",
+                )
+        } else {
+            value
+        }
+
+    /** [resolveMe] applied to a [PayerShare]'s email field. */
+    private fun PayerShare.resolveMe(): PayerShare = copy(email = resolveMe(email))
+
+    /**
+     * Enforce the "current user must be a participant" invariant for the multi-party
+     * transaction types. Buxfer transactions live in the current user's books, so a
+     * sharedBill / loan / paidForFriend that doesn't involve the user is nonsensical
+     * (and the API rejects it, often opaquely). Validating up-front gives the LLM a
+     * clear, actionable error instead of a 400 from Buxfer.
+     *
+     * Rules enforced (only when the relevant field is provided):
+     *  - `sharedBill`: the current user must appear in `sharers` and in `payers`.
+     *    Pass `{"email": "me", ...}` in each — `resolveMe` already substituted, so
+     *    this check looks for [BuxferClient.currentUserEmail] verbatim.
+     *  - `loan`: exactly one of `loanedBy` / `borrowedBy` is the current user — not
+     *    both (self-loan is meaningless), not neither.
+     *  - `paidForFriend`: exactly one of `paidBy` / `paidFor` is the current user.
+     *
+     * Throws [IllegalArgumentException] with a message that names the field and
+     * tells the caller how to fix it (use the `"me"` marker).
+     */
+    private fun validateParticipantInvariants(params: AddTransactionParams) {
+        // resolveMe has already run, so the current user's email is what we look for.
+        // If currentUserEmail is null at this point AND no field referenced "me", we
+        // can't enforce the rule — let it pass; Buxfer will validate. (If "me" was
+        // referenced without a session, resolveMe already threw.)
+        val me = client.currentUserEmail ?: return
+        when (params.type) {
+            "sharedBill" -> {
+                params.sharers?.let { sharers ->
+                    require(sharers.any { it.email == me }) {
+                        "Invariant for type=sharedBill: one of `sharers` must be the current user. Pass {\"email\": \"me\", ...} in the sharers array — the server resolves \"me\" to your Buxfer email."
+                    }
+                }
+                params.payers?.let { payers ->
+                    require(payers.any { it.email == me }) {
+                        "Invariant for type=sharedBill: one of `payers` must be the current user. If you paid the bill, pass [{\"email\": \"me\", \"amount\": <total>}] in payers; if a friend paid, include the current user as one of the payers anyway (Buxfer records the transaction in your books)."
+                    }
+                }
+            }
+            "loan" -> {
+                val loanedByIsMe = params.loanedBy == me
+                val borrowedByIsMe = params.borrowedBy == me
+                // Only validate if at least one side was provided — missing both is a
+                // Buxfer-level error we leave for the API to report.
+                if (params.loanedBy != null || params.borrowedBy != null) {
+                    require(loanedByIsMe xor borrowedByIsMe) {
+                        if (loanedByIsMe && borrowedByIsMe) {
+                            "Invariant for type=loan: `loanedBy` and `borrowedBy` cannot both be the current user (you can't loan to yourself)."
+                        } else {
+                            "Invariant for type=loan: exactly one of `loanedBy` / `borrowedBy` must be the current user. Pass \"me\" for the side you're on (loanedBy=\"me\" if you lent, borrowedBy=\"me\" if you borrowed)."
+                        }
+                    }
+                }
+            }
+            "paidForFriend" -> {
+                val paidByIsMe = params.paidBy == me
+                val paidForIsMe = params.paidFor == me
+                if (params.paidBy != null || params.paidFor != null) {
+                    require(paidByIsMe xor paidForIsMe) {
+                        if (paidByIsMe && paidForIsMe) {
+                            "Invariant for type=paidForFriend: `paidBy` and `paidFor` cannot both be the current user (that's just a regular expense)."
+                        } else {
+                            "Invariant for type=paidForFriend: exactly one of `paidBy` / `paidFor` must be the current user. Pass \"me\" for the side you're on (paidBy=\"me\" if you paid for a friend, paidFor=\"me\" if a friend paid for you)."
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     suspend fun deleteTransaction(args: JsonObject?): CallToolResult = runCatching {
         logToolEntry("buxfer_delete_transaction", args)

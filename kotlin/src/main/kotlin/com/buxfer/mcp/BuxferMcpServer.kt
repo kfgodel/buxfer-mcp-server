@@ -59,7 +59,8 @@ class BuxferMcpServer(client: BuxferClient) {
                 "Optional (type=transfer): fromAccountId, toAccountId. " +
                 "Optional (type=sharedBill): payers (array of {email, amount}), sharers (array of {email, amount?}), isEvenSplit. " +
                 "Optional (type=loan): loanedBy, borrowedBy (email or UID). " +
-                "Optional (type=paidForFriend): paidBy, paidFor (email or UID).",
+                "Optional (type=paidForFriend): paidBy, paidFor (email or UID). " +
+                "The current Buxfer user MUST be a participant in every multi-party transaction: one of `sharers` AND one of `payers` for sharedBill; exactly one of `loanedBy`/`borrowedBy` for loan; exactly one of `paidBy`/`paidFor` for paidForFriend. Use the literal \"me\" in their slot — the server resolves it from credentials so the MCP client never has to know the user's email. The server rejects requests that violate this rule before they reach Buxfer.",
             inputSchema = TransactionTools.ADD_TRANSACTION_INPUT_SCHEMA,
         ) { request -> transactionTools.addTransaction(request.arguments) }
 
@@ -70,7 +71,8 @@ class BuxferMcpServer(client: BuxferClient) {
                 "Optional (type=transfer): fromAccountId, toAccountId. " +
                 "Optional (type=sharedBill): payers (array of {email, amount}), sharers (array of {email, amount?}), isEvenSplit. " +
                 "Optional (type=loan): loanedBy, borrowedBy (email or UID). " +
-                "Optional (type=paidForFriend): paidBy, paidFor (email or UID).",
+                "Optional (type=paidForFriend): paidBy, paidFor (email or UID). " +
+                "Same participant invariant as buxfer_add_transaction: the current Buxfer user MUST be in `sharers` AND `payers` for sharedBill, in exactly one of `loanedBy`/`borrowedBy` for loan, in exactly one of `paidBy`/`paidFor` for paidForFriend. Use \"me\" — the server resolves it from credentials and validates before sending.",
             inputSchema = TransactionTools.EDIT_TRANSACTION_INPUT_SCHEMA,
         ) { request -> transactionTools.editTransaction(request.arguments) }
 

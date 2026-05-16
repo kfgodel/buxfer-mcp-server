@@ -81,6 +81,17 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
 
     @Volatile private var token: String? = null
 
+    /**
+     * The email of the currently-logged-in user, captured during [login] and lowercased
+     * for case-insensitive matching against Buxfer's normalized contact emails. `null`
+     * until a successful login. Read by the tool layer to resolve the special `"me"`
+     * marker in sharedBill / loan / paidForFriend counterparty fields.
+     */
+    @Volatile private var loggedInEmail: String? = null
+
+    /** Read-only view of the current session's user email. Null when not logged in. */
+    val currentUserEmail: String? get() = loggedInEmail
+
     private fun requireToken() = token ?: throw BuxferApiException("Not logged in — call login() first")
 
     /** Releases the underlying Ktor HTTP client and its engine. After close(), the
@@ -208,6 +219,11 @@ class BuxferClient(private val config: BuxferClientConfig = BuxferClientConfig()
         val body = responseBody(text(response))
         token = body["token"]?.jsonPrimitive?.contentOrNull
             ?: throw BuxferApiException("Login succeeded but no token in response")
+        // Capture the email AFTER the token so a failed login leaves both fields cleanly
+        // unset. Lowercased to defensively match Buxfer's normalized contact emails —
+        // a mixed-case env var would otherwise not match the user's own contact record
+        // when resolving the `"me"` marker in sharedBill participants.
+        loggedInEmail = email.lowercase()
         log.debug("login: token acquired")
     }
 

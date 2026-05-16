@@ -187,6 +187,10 @@ class BuxferMcpServerIntegrationTest {
 
         val client = launchMcpClient()
 
+        // Per the participant-invariant rule, the current user (logged in as
+        // "user@example.com" in setUp) must appear in both sharers and payers. We pass
+        // "me" — the server resolves it via BuxferClient.currentUserEmail before the
+        // request goes out, so this test also covers the end-to-end "me" pipeline.
         val result = client.callTool("buxfer_add_transaction", mapOf(
             "description" to "Dinner",
             "amount" to 100.0,
@@ -194,11 +198,11 @@ class BuxferMcpServerIntegrationTest {
             "date" to "2026-05-16",
             "type" to "sharedBill",
             "sharers" to listOf(
-                mapOf("email" to "a@example.com", "amount" to 60.0),
-                mapOf("email" to "b@example.com", "amount" to 40.0),
+                mapOf("email" to "me", "amount" to 60.0),
+                mapOf("email" to "friend@example.com", "amount" to 40.0),
             ),
             "payers" to listOf(
-                mapOf("email" to "a@example.com", "amount" to 100.0),
+                mapOf("email" to "me", "amount" to 100.0),
             ),
             "isEvenSplit" to false,
             "status" to "cleared",
@@ -212,14 +216,15 @@ class BuxferMcpServerIntegrationTest {
 
         // Wire side: prove the per-type form fields landed on the HTTP request. The body is
         // application/x-www-form-urlencoded, so we URL-decode it first; the array fields are
-        // expected as JSON strings per the Buxfer API contract.
+        // expected as JSON strings per the Buxfer API contract, with "me" resolved to the
+        // logged-in email.
         val captured = wireMock.findAll(postRequestedFor(urlPathEqualTo("/api/transaction_add"))).single()
         val body = URLDecoder.decode(captured.bodyAsString, StandardCharsets.UTF_8)
         assertThat(body).contains("type=sharedBill")
         assertThat(body).contains("isEvenSplit=false")
-        assertThat(body).contains("sharers=[{\"email\":\"a@example.com\",\"amount\":60.0}," +
-            "{\"email\":\"b@example.com\",\"amount\":40.0}]")
-        assertThat(body).contains("payers=[{\"email\":\"a@example.com\",\"amount\":100.0}]")
+        assertThat(body).contains("sharers=[{\"email\":\"user@example.com\",\"amount\":60.0}," +
+            "{\"email\":\"friend@example.com\",\"amount\":40.0}]")
+        assertThat(body).contains("payers=[{\"email\":\"user@example.com\",\"amount\":100.0}]")
         client.close()
     }
 
